@@ -5,6 +5,114 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-01-XX
+
+### Fixed
+- **Build Configuration**: Fixed `lightningcss` native module compatibility issues
+  - Switched from Turbopack to webpack for better native module support
+  - Updated PostCSS config to use `.cjs` format with string-based plugins
+  - Updated npm scripts to use `--webpack` flag by default
+- **PostCSS Configuration**: Resolved ES module/CommonJS conflicts
+  - Renamed `postcss.config.js` to `postcss.config.cjs` for webpack compatibility
+  - Configured plugins as strings instead of imported functions
+
+### Technical Improvements
+- **Native Module Support**: Webpack configuration handles `lightningcss` native bindings correctly
+- **Build Stability**: Production builds now complete successfully
+
+## [2.1.0] - 2025-01-XX
+
+### Added
+- **API Route Testing**: Comprehensive test suite for `/api/youtube/search` endpoint
+  - Tests for API key validation, request validation, successful searches, error handling, channel filtering, and date filtering
+  - Uses Vitest with custom MockRequest class for Next.js compatibility
+- **UI Streaming with Suspense**: Added Suspense boundaries around VideoGrid component
+  - Loading skeleton component (`VideoGridSkeleton`) for better perceived performance
+  - Enables progressive rendering of search results
+- **Server Component Optimization**: Isolated client providers into separate `Providers.jsx` component
+  - Root layout (`app/layout.jsx`) is now a Server Component (no "use client" directive)
+  - Enables Next.js performance optimizations (reduced JavaScript bundle size)
+
+### Technical Improvements
+- **Root Layout Optimization**: Removed "use client" from root layout, enabling Next.js Server Components benefits
+- **Test Coverage**: Extended test coverage to include backend API routes
+- **Performance**: Reduced initial JavaScript bundle by making root layout a Server Component
+- **Developer Experience**: Better separation of client and server code
+
+## [2.0.0] - 2025-01-XX
+
+### Changed
+
+#### Next.js Migration (Breaking Changes)
+- **Framework Migration**: Migrated from Vite + React to Next.js
+- **API Security**: YouTube API key moved server-side (no longer exposed to client)
+- **API Routes**: All YouTube API calls now go through Next.js API routes (`/api/youtube/search`)
+- **Environment Variables**: Changed from `VITE_YOUTUBE_API_KEY` to `YOUTUBE_API_KEY` (server-side only)
+
+#### Removed
+- **SettingsModal**: Removed API key management UI (no longer needed)
+- **Client-Side API Key State**: Removed API key from `AppContext` and localStorage
+- **API Key UI Elements**: Removed "Set API Key" button from header
+
+### Added
+- **Next.js App Router**: Added `app/` directory structure
+- **API Route**: Created `app/api/youtube/search/route.js` for server-side YouTube search
+- **Migration Guide**: Added `MIGRATION.md` with complete migration documentation
+- **Environment Example**: Added `.env.example` for API key configuration
+
+### Technical Improvements
+- **Security**: API key never exposed to client-side code
+- **Scalability**: Foundation for server-side features (authentication, database, rate limiting)
+- **Performance**: Server-side rendering options available
+- **Future-Ready**: Easy to add Supabase integration, authentication, etc.
+
+### Migration Notes
+- Update `.env` file: Change `VITE_YOUTUBE_API_KEY` to `YOUTUBE_API_KEY`
+- Development: Use `npm run dev` (now runs Next.js instead of Vite)
+- Build: Use `npm run build` (creates `.next/` folder instead of `dist/`)
+- Production: Requires Node.js hosting (Vercel, Railway, etc.) instead of static hosting
+
+## [1.4.0] - 2025-01-XX
+
+### Added
+
+#### Testing Infrastructure
+- **Comprehensive AppContext Tests**: Full test coverage for core application logic
+  - API key management (initialization, persistence, updates)
+  - Search functionality (success, errors, pagination, validation)
+  - Sort functionality (all 9 sort orders: date, title, views, channel, etc.)
+  - Selection management (toggle, select all, deselect all, get selected)
+  - Queue for transcription (success, errors, edge cases)
+  - Modal state management
+- **Transcription Queue Tests**: Complete test suite for queue utility
+  - Queue operations (add, remove, clear, check)
+  - Error handling (corrupted data, quota exceeded)
+  - Edge cases (invalid IDs, duplicates, empty inputs)
+
+#### Transcription Queue Feature
+- **Transcription Queue System**: Implemented full queue functionality
+  - `transcriptionQueue.js` utility module with localStorage persistence
+  - Add videos to queue with duplicate prevention
+  - Remove videos from queue
+  - Clear entire queue
+  - Check if video is in queue
+  - Get queue size
+  - Comprehensive error handling (quota exceeded, corrupted data)
+  - Ready for backend integration (can easily swap localStorage for API calls)
+
+### Changed
+- **Queue for Transcription**: Now fully functional (previously just console.log)
+  - Saves videos to persistent queue
+  - Shows success/error messages
+  - Handles edge cases (no selection, failures)
+  - Clears selection after successful queue
+
+### Technical Improvements
+- Created `src/context/__tests__/AppContext.test.jsx` with 30+ test cases
+- Created `src/utils/__tests__/transcriptionQueue.test.js` with comprehensive coverage
+- Updated `AppContext` to use `transcriptionQueue` utility
+- Added proper error handling and user feedback for queue operations
+
 ## [1.3.0] - 2025-01-XX
 
 ### Added

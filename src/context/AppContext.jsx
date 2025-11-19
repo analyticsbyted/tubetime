@@ -1,12 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useSelection } from '../hooks/useSelection';
 import { saveSearchHistory } from '../utils/searchHistory';
+import { addToQueue } from '../utils/transcriptionQueue';
 import * as youtubeService from '../services/youtubeService';
 
 const AppContext = createContext(null);
-
-const API_KEY_STORAGE_KEY = 'tubetime_youtube_api_key';
 
 export const useAppContext = () => {
   const context = useContext(AppContext);
@@ -30,45 +29,13 @@ export const AppProvider = ({ children }) => {
   // Selection state
   const selectionHook = useSelection();
 
-  // API Key state
-  const [apiKey, setApiKey] = useState(() => {
-    try {
-      const stored = localStorage.getItem(API_KEY_STORAGE_KEY);
-      return stored || import.meta.env.VITE_YOUTUBE_API_KEY || '';
-    } catch (error) {
-      console.error('Failed to load API key from localStorage:', error);
-      return import.meta.env.VITE_YOUTUBE_API_KEY || '';
-    }
-  });
-
   // Modal states
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
-
-  // Persist API key to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      if (apiKey) {
-        localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
-      } else {
-        localStorage.removeItem(API_KEY_STORAGE_KEY);
-      }
-    } catch (error) {
-      console.error('Failed to save API key to localStorage:', error);
-      toast.error('Failed to save API key. Some features may not work.');
-    }
-  }, [apiKey]);
 
   // Search handler
   const handleSearch = useCallback(async (searchParams, isLoadMore = false) => {
-    if (!apiKey) {
-      toast.error('YouTube API Key is not set. Please add it in settings.');
-      setIsSettingsOpen(true);
-      return;
-    }
-
     // Validate: either query or channelName must be provided
     const hasQuery = searchParams.query?.trim().length > 0;
     const hasChannelName = searchParams.channelName?.trim().length > 0;
@@ -88,7 +55,6 @@ export const AppProvider = ({ children }) => {
     try {
       const result = await youtubeService.searchVideos({
         ...searchParams,
-        apiKey,
         pageToken: isLoadMore ? nextPageToken : undefined,
       });
       
@@ -135,7 +101,7 @@ export const AppProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [apiKey, nextPageToken, selectionHook]);
+  }, [nextPageToken, selectionHook]);
 
   // Load more handler
   const handleLoadMore = useCallback(() => {
@@ -156,9 +122,26 @@ export const AppProvider = ({ children }) => {
   // Queue handler
   const handleQueue = useCallback(() => {
     const selectedIds = Array.from(selectionHook.selection);
-    console.log('Queued for transcription:', selectedIds);
-    toast.success(`${selectedIds.length} video${selectedIds.length !== 1 ? 's' : ''} queued for transcription.`);
-    selectionHook.clear();
+    
+    if (selectedIds.length === 0) {
+      toast.error('No videos selected.');
+      return;
+    }
+
+    try {
+      const result = addToQueue(selectedIds);
+      
+      if (result.success) {
+        console.log('Queued for transcription:', selectedIds);
+        toast.success(result.message);
+        selectionHook.clear();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to queue videos:', error);
+      toast.error('Failed to queue videos for transcription.');
+    }
   }, [selectionHook]);
 
   // Get selected videos
@@ -253,17 +236,11 @@ export const AppProvider = ({ children }) => {
     deselectAll: selectionHook.deselectAll,
     getSelectedVideos,
     
-    // API Key state
-    apiKey,
-    setApiKey,
-    
     // Modal states
     isHistoryOpen,
     setIsHistoryOpen,
     isCollectionModalOpen,
     setIsCollectionModalOpen,
-    isSettingsOpen,
-    setIsSettingsOpen,
     isFavoritesOpen,
     setIsFavoritesOpen,
     

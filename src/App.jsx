@@ -1,6 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { Suspense } from 'react';
 import { Toaster } from 'sonner';
-import { Youtube, Key, Loader2, Star } from 'lucide-react';
+import { Youtube, Loader2, Star } from 'lucide-react';
 import EnhancedSearchBar from './components/EnhancedSearchBar';
 import SearchHistory from './components/SearchHistory';
 import SearchStats from './components/SearchStats';
@@ -8,8 +10,8 @@ import SortBar from './components/SortBar';
 import CollectionModal from './components/CollectionModal';
 import FavoritesSidebar from './components/FavoritesSidebar';
 import VideoGrid from './components/VideoGrid';
+import VideoGridSkeleton from './components/VideoGridSkeleton';
 import ActionBar from './components/ActionBar';
-import SettingsModal from './components/SettingsModal';
 import Footer from './components/Footer';
 import { useAppContext } from './context/AppContext';
 import { getDatePreset } from './utils/datePresets';
@@ -32,14 +34,10 @@ function App() {
     selectAll,
     deselectAll,
     getSelectedVideos,
-    apiKey,
-    setApiKey,
     isHistoryOpen,
     setIsHistoryOpen,
     isCollectionModalOpen,
     setIsCollectionModalOpen,
-    isSettingsOpen,
-    setIsSettingsOpen,
     isFavoritesOpen,
     setIsFavoritesOpen,
     handleQueue,
@@ -51,12 +49,6 @@ function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-red-500/30 flex flex-col">
       <Toaster position="top-right" theme="dark" />
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSave={setApiKey}
-        currentApiKey={apiKey}
-      />
       <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -73,24 +65,13 @@ function App() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={() => setIsFavoritesOpen(true)}
               className="text-xs px-3 py-1.5 rounded-full border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors flex items-center gap-2"
               title="Favorites"
             >
               <Star className="w-3 h-3" />
               Favorites
-            </button>
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-2
-                ${apiKey 
-                  ? 'border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600' 
-                  : 'border-red-900/50 text-red-400 bg-red-900/10 hover:bg-red-900/20'
-                }`}
-            >
-              <Key className="w-3 h-3" />
-              {apiKey ? 'API Key Configured' : 'Set API Key'}
             </button>
           </div>
         </div>
@@ -177,17 +158,19 @@ function App() {
             <p>Scanning the archives...</p>
           </div>
         ) : (
-          <VideoGrid 
-            videos={getSortedVideos()} 
-            selection={selection} 
-            onToggleSelection={toggleSelection}
-            onSelectAll={() => selectAll(videos.map(v => v.id))}
-            onDeselectAll={deselectAll}
-            hasSearched={hasSearched}
-            hasMore={!!nextPageToken}
-            onLoadMore={handleLoadMore}
-            totalResults={totalResults}
-          />
+          <Suspense fallback={<VideoGridSkeleton />}>
+            <VideoGrid 
+              videos={getSortedVideos()} 
+              selection={selection} 
+              onToggleSelection={toggleSelection}
+              onSelectAll={() => selectAll(videos.map(v => v.id))}
+              onDeselectAll={deselectAll}
+              hasSearched={hasSearched}
+              hasMore={!!nextPageToken}
+              onLoadMore={handleLoadMore}
+              totalResults={totalResults}
+            />
+          </Suspense>
         )}
       </main>
       <Footer />

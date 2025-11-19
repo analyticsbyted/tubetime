@@ -8,7 +8,7 @@ The project began with a clear vision from the user: a React application called 
 
 **Phase 1 (Current):** A historical YouTube search engine.
 -   **Functionality:** Allows users to search for YouTube videos by query and date range, then curate a list of videos from the results.
--   **Tech Stack:** React (Vite), Tailwind CSS, Lucide React.
+-   **Tech Stack:** Next.js 16 (App Router), React 19, Tailwind CSS, Lucide React.
 -   **Key Features:**
     -   Search bar with query, start date, and end date.
     -   A responsive grid of video cards, each with a selection checkbox.
@@ -26,17 +26,17 @@ The project began with a clear vision from the user: a React application called 
 
 ## Development History & Challenges
 
-The development process was not without its challenges. The most significant and persistent issue was related to the PostCSS and Tailwind CSS configuration within the Vite environment.
+**Note:** The project was initially built with Vite + React, but migrated to Next.js in v2.0.0 for Phase 2 backend integration. The following sections document the original Vite setup for historical context.
 
-### The PostCSS Configuration Saga
+### The PostCSS Configuration Saga (Historical - Vite Era)
 
-1.  **Initial Setup:** The project was scaffolded with Vite and the necessary dependencies (`tailwindcss`, `postcss`, `autoprefixer`) were installed.
+1.  **Initial Setup:** The project was initially scaffolded with Vite and the necessary dependencies (`tailwindcss`, `postcss`, `autoprefixer`) were installed.
 2.  **First Error:** The initial attempt to run the application resulted in an error: `[plugin:vite:css] [postcss] It looks like you're trying to use tailwindcss directly as a PostCSS plugin. The PostCSS plugin has moved to a separate package...`. This indicated an incompatibility between the version of Tailwind CSS (v4) and the PostCSS configuration.
 3.  **First Attempted Fix:** The `postcss.config.js` was updated to use the new `@tailwindcss/postcss` package, and the Vite config was updated to explicitly point to the PostCSS config file. This led to a new error: `postcssConfig?.plugins.slice is not a function`. This error suggested that Vite was expecting the `plugins` property in the PostCSS config to be an array, but it was an object.
 4.  **Second Attempted Fix:** The `postcss.config.js` was changed to export an array of plugins, in the more traditional PostCSS format. This, however, led back to the original error, as `tailwindcss` was being used directly as a plugin.
 5.  **Resolution:** The final and correct solution was to use the array format for the `plugins` in `postcss.config.js`, but to import and use the `@tailwindcss/postcss` package as the plugin, not `tailwindcss`.
 
-    **Correct `postcss.config.js`:**
+    **Correct `postcss.config.js` (still used with Next.js):**
     ```javascript
     import tailwindcss from '@tailwindcss/postcss';
     import autoprefixer from 'autoprefixer';
@@ -48,7 +48,6 @@ The development process was not without its challenges. The most significant and
       ],
     };
     ```
-    The `vite.config.js` was also simplified to let Vite auto-detect the `postcss.config.js` file.
 
 ### Styling and Layout Issues
 
@@ -135,6 +134,8 @@ The application is now in a stable, production-ready state with enhanced feature
 ✅ **Favorites System:** Save and manage favorite searches and channels  
 ✅ **Channel Filtering:** Clickable channels in stats, fuzzy matching suggestions  
 ✅ **Sort Functionality:** Client-side sorting with dedicated SortBar component  
+✅ **Transcription Queue:** Implemented queue system with localStorage persistence  
+✅ **Comprehensive Testing:** Test suite for AppContext and utility functions  
 
 ### State Management Refactoring (v1.2.0)
 
@@ -188,6 +189,90 @@ All utility functions (`collections.js`, `searchHistory.js`, `export.js`) were e
 - Made search query optional when channel name is provided
 - Added results per page selector (10, 20, 50, 100) with persistence
 - Improved channel search to be less strict with fuzzy matching
+
+**Testing & Quality Assurance:**
+- Created comprehensive test suite for `AppContext` covering:
+  - API key management
+  - Search functionality (success, errors, pagination, validation)
+  - Sort functionality (all sort orders)
+  - Selection management (toggle, select all, deselect all)
+  - Queue for transcription
+  - Modal state management
+- Created test suite for `transcriptionQueue` utility covering:
+  - Queue operations (add, remove, clear)
+  - Error handling (corrupted data, quota exceeded)
+  - Edge cases (invalid IDs, duplicates)
+
+**Transcription Queue Implementation:**
+- Created `transcriptionQueue.js` utility for managing queued videos
+- Implements localStorage persistence with error handling
+- Handles quota exceeded scenarios with automatic cleanup
+- Validates input and prevents duplicates
+- Ready for backend integration in Phase 2 (can easily swap localStorage for API calls)
+- Integrated into `AppContext.handleQueue` function
+
+### Scalability Considerations & Future Recommendations
+
+The current implementation uses localStorage and client-side processing, which is perfectly suitable for Phase 1. However, as the application scales, the following considerations should be kept in mind:
+
+**Current Limitations:**
+- **localStorage Size Limits:** Typically 5-10MB per domain. With video metadata, this could become a constraint with thousands of videos.
+- **Client-Side Sorting:** Works well for hundreds of videos, but may become slow with thousands.
+- **Rendering Performance:** Large lists of video cards may impact rendering performance.
+
+**Recommended Future Enhancements:**
+
+1. **List Virtualization** (When handling 1000+ videos):
+   - Use libraries like `react-window` or `@tanstack/react-virtual`
+   - Only render visible items in the viewport
+   - Significantly improves performance for long lists
+   - Example: `npm install react-window`
+
+2. **Web Workers** (For heavy data processing):
+   - Offload sorting and filtering operations to Web Workers
+   - Prevents UI freezing during large dataset processing
+   - Useful when client-side operations become a bottleneck
+   - Example: Move `sortVideos` function to a Web Worker
+
+3. **Advanced Storage** (When localStorage limits are reached):
+   - Migrate to IndexedDB for larger storage capacity (hundreds of MB)
+   - Better query capabilities for complex filtering
+   - Libraries: `idb` or `Dexie.js` for easier IndexedDB management
+   - Example: `npm install idb`
+
+4. **Backend Integration** (Phase 2):
+   - Move transcription queue to Supabase database
+   - Server-side pagination and filtering
+   - Real-time updates for transcription status
+   - Better scalability for production use
+
+**When to Consider These:**
+- **Virtualization:** When rendering 500+ video cards causes noticeable lag
+- **Web Workers:** When sorting 1000+ videos takes >100ms
+- **IndexedDB:** When localStorage quota warnings appear or data exceeds 5MB
+- **Backend:** When moving to Phase 2 (production deployment)
+
+These are **future considerations** and not immediate requirements. The current implementation is well-optimized for typical use cases.
+
+### Next.js Migration (v2.0.0)
+
+**Migration Completed**: Successfully migrated from Vite + React to Next.js for Phase 2 backend integration.
+
+**Key Changes:**
+- **API Security**: YouTube API key moved server-side (stored in `.env` as `YOUTUBE_API_KEY`)
+- **API Routes**: Created `/api/youtube/search` endpoint for server-side YouTube API calls
+- **Client-Side Updates**: `youtubeService.js` now calls Next.js API routes instead of direct YouTube API
+- **Removed Client-Side API Key Management**: SettingsModal and API key UI elements removed
+- **Project Structure**: Added `app/` directory with Next.js App Router structure
+- **Configuration**: Added `next.config.js`, updated `package.json` scripts
+
+**Benefits:**
+- API key never exposed to client (security improvement)
+- Ready for server-side features (authentication, database, rate limiting)
+- Better scalability and performance options
+- Foundation for Phase 2 backend integration
+
+**Migration Details**: See `MIGRATION.md` for complete migration guide and rollback instructions.
 
 ### Known Issues
 
