@@ -19,8 +19,14 @@ The project began with a clear vision from the user: a React application called 
 
 ## Architectural Decisions
 
--   **State Management:** A custom `useSelection` hook was implemented to manage the set of selected video IDs. This provides a simple and contained way to handle selection state without a heavier state management library.
+-   **State Management (v3.0.0):** 
+    - URL-based state for search parameters (shareable, bookmarkable)
+    - Component-level state for local UI concerns (modals, etc.)
+    - Focused custom hooks for shared logic (`useVideoSearch`, `useVideoSort`, `useSearchParams`)
+    - Custom `useSelection` hook for multi-select functionality
+    - This approach eliminates global re-renders and follows Next.js best practices
 -   **API Abstraction:** The YouTube API logic was isolated into a `youtubeService.js` file. This separation of concerns makes the code cleaner and will make it easier to integrate with a backend (like Supabase) in the future.
+-   **Next.js App Router:** Uses `app/page.jsx` as the main entry point, following App Router patterns
 -   **Styling:** Tailwind CSS was chosen for its utility-first approach, which is well-suited for rapid UI development and creating custom designs.
 -   **Mobile-First Design:** A key requirement was that the application should be designed with a mobile-first orientation. This was implemented by using responsive prefixes (`sm:`, `md:`, etc.) in the Tailwind CSS classes.
 
@@ -53,7 +59,7 @@ The project began with a clear vision from the user: a React application called 
 
 -   **Dark Mode:** The initial dark mode styles were not being applied correctly, resulting in a white background. This was resolved by applying the dark background color to the `html`, `body`, and `#root` elements in `src/index.css`.
 -   **Form Elements:** The date input fields and the search button had white backgrounds due to default browser styling. This was fixed by adding `appearance-none` and explicit color classes to these elements in the `SearchBar.jsx` component.
--   **Layout Width:** The main content area was spanning the full width of the viewport. This was addressed by adding `max-w-7xl` and `mx-auto` to the `main` element in `App.jsx`.
+-   **Layout Width:** The main content area was spanning the full width of the viewport. This was addressed by adding `max-w-7xl` and `mx-auto` to the `main` element (now in `app/page.jsx`).
 
 ### Tailwind CSS v4 Migration
 
@@ -135,23 +141,60 @@ The application is now in a stable, production-ready state with enhanced feature
 ✅ **Channel Filtering:** Clickable channels in stats, fuzzy matching suggestions  
 ✅ **Sort Functionality:** Client-side sorting with dedicated SortBar component  
 ✅ **Transcription Queue:** Implemented queue system with localStorage persistence  
-✅ **Comprehensive Testing:** Test suite for AppContext and utility functions  
+✅ **Comprehensive Testing:** Test suite for utility functions (AppContext tests removed after refactoring)
 
-### State Management Refactoring (v1.2.0)
+### Architectural Refactoring (v3.0.0) - Next.js Best Practices
 
-As the application grew, the centralized state in `App.jsx` became unwieldy and led to prop-drilling issues. A comprehensive refactoring was performed:
+**Major Refactoring Completed**: The application underwent a comprehensive architectural refactoring to align with Next.js best practices and eliminate the "god object" pattern.
 
-**React Context Implementation:**
-- Created `src/context/AppContext.jsx` to centralize all application state
-- Moved search state, selection state, API key management, and modal states to context
-- Implemented `useAppContext()` hook for easy access throughout component tree
-- Wrapped application with `AppProvider` in `main.jsx`
+**Previous Architecture (v1.2.0 - v2.1.1):**
+- Monolithic `src/App.jsx` component containing entire application
+- Global `AppContext` managing all state (search, selection, modals, API key)
+- Prop-drilling issues resolved but created new problems:
+  - Entire app re-rendered on any state change (e.g., opening a modal)
+  - Difficult to test and maintain
+  - Not aligned with Next.js App Router patterns
+
+**New Architecture (v3.0.0):**
+- **Decomposed Monolithic Component**: 
+  - `app/page.jsx` is now the main entry point (replaces `src/App.jsx`)
+  - Header extracted as `src/components/Header.jsx`
+  - Layout structure directly in page component
+  - Footer remains a Server Component
+
+- **Granular State Management**:
+  - **URL-Based State**: Search parameters stored in URL query string using `useSearchParams`
+    - Makes searches shareable and bookmarkable
+    - Follows Next.js App Router best practices
+    - State persists across page refreshes
+  - **Component-Level State**: Modal states use local `useState` hooks
+    - No global re-renders when opening/closing modals
+    - Better performance and isolation
+  - **Focused Custom Hooks**: Replaced AppContext with specialized hooks:
+    - `useSearchParams` - Manages URL state and updates
+    - `useVideoSearch` - Handles video search operations and state
+    - `useVideoSort` - Client-side sorting logic
+    - `useSelection` - Multi-select functionality (existing, unchanged)
 
 **Benefits:**
-- Eliminated prop-drilling - components can access state directly via hook
-- Better separation of concerns - state logic separated from UI components
-- Improved maintainability - easier to add new features without modifying multiple components
-- Better scalability - ready for future features like user authentication, collections management, etc.
+- **Performance**: Eliminated global context re-renders - only affected components update
+- **Maintainability**: Smaller, focused hooks are easier to understand and test
+- **Next.js Alignment**: Follows App Router patterns and best practices
+- **User Experience**: URL-based state enables bookmarking and sharing
+- **Scalability**: Better foundation for Phase 2 database integration
+- **Testability**: Focused hooks can be tested independently
+
+**Files Removed:**
+- `src/App.jsx` - Replaced by `app/page.jsx`
+- `src/context/AppContext.jsx` - Replaced by focused hooks
+- `src/context/__tests__/AppContext.test.jsx` - No longer needed
+
+**Files Created:**
+- `app/page.jsx` - Main page component
+- `src/components/Header.jsx` - Extracted header component
+- `src/hooks/useSearchParams.js` - URL state management
+- `src/hooks/useVideoSearch.js` - Video search logic
+- `src/hooks/useVideoSort.js` - Sorting logic
 
 **Utility Functions Enhancement:**
 All utility functions (`collections.js`, `searchHistory.js`, `export.js`) were enhanced with:
@@ -273,6 +316,20 @@ These are **future considerations** and not immediate requirements. The current 
 - Foundation for Phase 2 backend integration
 
 **Migration Details**: See `MIGRATION.md` for complete migration guide and rollback instructions.
+
+### API Route Improvements (v3.0.0)
+
+**Enhanced Channel Search:**
+- API route now performs channelId lookup before searching for videos
+- Searches YouTube API for channel by name first
+- Uses `channelId` parameter for accurate video searches directly from YouTube
+- Falls back to name-based client-side filtering only if channel lookup fails
+- Significantly improves accuracy of channel-specific searches
+
+**Implementation Details:**
+- Two-step process: First search for channel, then use channelId in video search
+- Graceful error handling - continues with name filtering if lookup fails
+- More efficient - fewer API calls and more accurate results
 
 ### Known Issues
 

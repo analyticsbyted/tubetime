@@ -5,6 +5,54 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-01-XX
+
+### Changed (Breaking)
+
+#### Major Architectural Refactoring - Next.js Best Practices
+- **Monolithic Component Decomposition**: Eliminated `src/App.jsx` in favor of `app/page.jsx` as the main entry point
+  - Layout structure moved directly into `app/page.jsx`
+  - Header extracted as separate `Header.jsx` component
+  - Footer remains a Server Component
+- **State Management Overhaul**: Replaced global `AppContext` with focused, granular state management
+  - **URL-Based State**: Search parameters now stored in URL query string (shareable, bookmarkable)
+  - **Component-Level State**: Modal states moved to local `useState` hooks
+  - **Focused Custom Hooks**: Created specialized hooks for specific concerns:
+    - `useSearchParams` - URL state management with Next.js `useSearchParams`
+    - `useVideoSearch` - Video search operations and state
+    - `useVideoSort` - Client-side video sorting logic
+  - Removed `src/context/AppContext.jsx` and all related test files
+
+### Added
+- **Improved Channel Search**: API route now performs channelId lookup for accurate results
+  - Searches YouTube API for channel by name first
+  - Uses `channelId` parameter for precise video searches
+  - Falls back to name-based filtering only if lookup fails
+- **New Components**:
+  - `src/components/Header.jsx` - Extracted header component
+- **New Hooks**:
+  - `src/hooks/useSearchParams.js` - URL-based state management
+  - `src/hooks/useVideoSearch.js` - Video search logic
+  - `src/hooks/useVideoSort.js` - Sorting logic
+
+### Removed
+- `src/App.jsx` - Replaced by `app/page.jsx`
+- `src/context/AppContext.jsx` - Replaced by focused hooks and URL state
+- `src/context/__tests__/AppContext.test.jsx` - No longer needed
+- Empty `src/context/` directory structure
+
+### Technical Improvements
+- **Performance**: Eliminated global context re-renders on every state change
+- **Maintainability**: Smaller, focused hooks are easier to test and maintain
+- **Next.js Alignment**: Follows App Router best practices and patterns
+- **Scalability**: Better foundation for Phase 2 database integration
+- **User Experience**: URL-based state enables bookmarking and sharing of searches
+
+### Migration Notes
+- Search state is now in URL - users can bookmark and share search results
+- Modal states are component-local - no global state pollution
+- All functionality preserved - no breaking changes to user-facing features
+
 ## [2.1.1] - 2025-01-XX
 
 ### Fixed
@@ -15,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PostCSS Configuration**: Resolved ES module/CommonJS conflicts
   - Renamed `postcss.config.js` to `postcss.config.cjs` for webpack compatibility
   - Configured plugins as strings instead of imported functions
+- **Environment Variables**: Fixed `.env.local` not being prioritized over `.env`
+  - Removed unnecessary `env` config from `next.config.js`
+  - Next.js now correctly loads from `.env.local` automatically
 
 ### Technical Improvements
 - **Native Module Support**: Webpack configuration handles `lightningcss` native bindings correctly

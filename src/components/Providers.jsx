@@ -1,13 +1,14 @@
 'use client';
 
-import { AppProvider } from '../context/AppContext';
-
 /**
  * Client-side providers wrapper
- * This component isolates all client-side providers to allow
+ * Currently no providers needed as we've moved to URL-based state
+ * and component-level state management
+ * 
+ * This component exists to maintain the pattern and allow
  * the root layout to remain a Server Component
  */
 export default function Providers({ children }) {
-  return <AppProvider>{children}</AppProvider>;
+  return <>{children}</>;
 }
 

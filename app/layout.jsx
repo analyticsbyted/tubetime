@@ -4,6 +4,9 @@ import Providers from '../src/components/Providers';
 export const metadata = {
   title: 'TubeTime',
   description: 'Historical YouTube search engine for video transcription pipeline',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {

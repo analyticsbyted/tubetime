@@ -55,19 +55,51 @@ export async function POST(request) {
       );
     }
 
-    // YouTube API requires a query parameter
-    // If only channelName is provided, use wildcard to get more results, then filter by channel
-    const searchQuery = hasQuery ? query.trim() : '*';
+    // If channelName is provided, first find the channelId for accurate results
+    let channelId = null;
+    if (channelName && channelName.trim().length > 0) {
+      try {
+        // Search for channel by name
+        const channelSearchParams = new URLSearchParams({
+          part: 'id',
+          q: channelName.trim(),
+          type: 'channel',
+          maxResults: '1',
+          key: apiKey,
+        });
+        
+        const channelSearchResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/search?${channelSearchParams.toString()}`
+        );
+        
+        if (channelSearchResponse.ok) {
+          const channelData = await channelSearchResponse.json();
+          if (channelData.items && channelData.items.length > 0) {
+            channelId = channelData.items[0].id.channelId;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to find channel ID, falling back to name filtering:', error);
+        // Continue with name-based filtering if channel lookup fails
+      }
+    }
 
     // Build search params
+    const searchQuery = hasQuery ? query.trim() : (channelId ? '' : '*');
     const params = new URLSearchParams({
       part: 'snippet',
-      q: searchQuery,
       type: 'video',
       maxResults: String(maxResults),
       order: order,
       key: apiKey,
     });
+
+    // Use channelId if found, otherwise use query
+    if (channelId) {
+      params.append('channelId', channelId);
+    } else if (searchQuery) {
+      params.append('q', searchQuery);
+    }
 
     // Date filters
     if (startDate) {
@@ -157,8 +189,9 @@ export async function POST(request) {
       };
     });
 
-    // Client-side channel filtering (if channelName provided)
-    if (channelName && channelName.trim().length > 0) {
+    // Client-side channel filtering (only if channelId lookup failed and channelName provided)
+    // This is now a fallback - most searches should use channelId for accuracy
+    if (channelName && channelName.trim().length > 0 && !channelId) {
       const channelLower = channelName.toLowerCase().trim();
       results = results.filter(video => {
         const videoChannelLower = video.channelTitle?.toLowerCase() || '';

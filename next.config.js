@@ -18,10 +18,6 @@ const nextConfig = {
   experimental: {
     // Add any experimental features here
   },
-  // Environment variables that should be available on the server
-  env: {
-    YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
-  },
 };
 
 export default nextConfig;
