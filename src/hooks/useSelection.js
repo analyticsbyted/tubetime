@@ -19,5 +19,13 @@ export const useSelection = () => {
     setSelection(new Set());
   }, []);
 
-  return { selection, toggle, clear };
+  const selectAll = useCallback((ids) => {
+    setSelection(new Set(ids));
+  }, []);
+
+  const deselectAll = useCallback(() => {
+    setSelection(new Set());
+  }, []);
+
+  return { selection, toggle, clear, selectAll, deselectAll };
 };

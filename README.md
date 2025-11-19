@@ -8,13 +8,50 @@ This initial phase focuses on providing a user interface for searching YouTube v
 
 ### Features
 
--   **Search Interface:** Search for YouTube videos by query, start date, and end date (RFC 3339 format)
--   **Video Grid:** Display search results in a responsive grid with hover effects
+#### Search & Discovery
+-   **Advanced Search Interface:** Search for YouTube videos by query, start date, and optional end date (RFC 3339 format)
+-   **Search History:** Save and quickly re-run recent searches with timestamps
+-   **Date Range Presets:** Quick filters for "Last 24 Hours", "Last 7 Days", "Last 30 Days", "This Month", "Last Year" (defaults to Last 7 Days)
+-   **Advanced Filters:**
+  - Channel name filtering with fuzzy matching and suggestions
+  - Duration filter (short/medium/long)
+  - Sort by relevance, date, rating, title, views, or channel (client-side)
+  - Language filter
+  - Results per page selector (10, 20, 50, 100)
+-   **Pagination:** Load more results with "Load More" button (supports infinite scroll)
+
+#### Video Management
 -   **Multi-Select:** Select multiple videos from search results using checkboxes
--   **Action Bar:** Floating action bar appears when videos are selected, showing count and "Queue for Transcription" button
+-   **Selection Controls:** Select All / Deselect All buttons with selection counter in header
+-   **Collections/Playlists:** Save selected videos as named collections with localStorage persistence
+-   **Export Functionality:**
+  - Export to JSON (full video data)
+  - Export to CSV (formatted for spreadsheets)
+  - Export video IDs only
+
+#### Analytics & Insights
+-   **Search Statistics Dashboard:** 
+  - Total results count
+  - Unique channels count
+  - Average video duration
+  - Date range visualization
+  - Top channels breakdown
+-   **Video Metadata Display:**
+  - View count, like count, comment count
+  - Duration badges
+  - Category tags
+
+#### User Experience
+-   **Action Bar:** Floating action bar appears when videos are selected
 -   **API Key Management:** Settings modal for entering YouTube API key (with localStorage persistence)
 -   **Loading States:** Visual feedback during search operations
 -   **Empty States:** Helpful messages when no results are found or before first search
+-   **Favorites System:** Save favorite searches and channels for quick access
+    - Sidebar interface for managing favorites
+    - Add channels to favorites directly from search statistics
+    - Re-run favorite searches with one click
+-   **Channel Suggestions:** Fuzzy matching suggestions when typing channel names
+-   **Sort Options:** Client-side sorting by date, relevance, rating, title, views, or channel
 
 ### Tech Stack
 
@@ -84,15 +121,33 @@ tubetime/
 ├── public/              # Static assets
 ├── src/
 │   ├── components/      # React components
-│   │   ├── ActionBar.jsx      # Floating action bar for selected videos
-│   │   ├── SearchBar.jsx      # Search form with query and date inputs
-│   │   ├── SettingsModal.jsx  # API key configuration modal
-│   │   ├── VideoCard.jsx      # Individual video card component
-│   │   └── VideoGrid.jsx      # Grid layout for video results
+│   │   ├── ActionBar.jsx         # Floating action bar with export and collection save
+│   │   ├── ChannelSuggestions.jsx # Channel name suggestions with fuzzy matching
+│   │   ├── CollectionModal.jsx   # Modal for saving video collections
+│   │   ├── EnhancedSearchBar.jsx # Advanced search with filters and presets
+│   │   ├── FavoritesSidebar.jsx  # Sidebar for managing favorite searches and channels
+│   │   ├── Footer.jsx            # Footer component with copyright notice
+│   │   ├── SearchHistory.jsx     # Search history modal component
+│   │   ├── SearchStats.jsx       # Search statistics dashboard with clickable channels
+│   │   ├── SettingsModal.jsx     # API key configuration modal
+│   │   ├── SortBar.jsx           # Sort options for search results
+│   │   ├── VideoCard.jsx         # Individual video card with metadata
+│   │   └── VideoGrid.jsx         # Grid layout with selection controls
+│   ├── context/
+│   │   └── AppContext.jsx        # React Context for global state management
 │   ├── hooks/
-│   │   └── useSelection.js    # Custom hook for multi-select functionality
+│   │   └── useSelection.js       # Custom hook for multi-select functionality
 │   ├── services/
-│   │   └── youtubeService.js  # YouTube API abstraction layer
+│   │   └── youtubeService.js     # YouTube API abstraction layer with metadata
+│   ├── utils/
+│   │   ├── channelMatcher.js    # Fuzzy matching utilities for channel names
+│   │   ├── collections.js        # Collection/playlist management utilities
+│   │   ├── datePresets.js        # Date range preset utilities
+│   │   ├── export.js             # Export functionality (JSON/CSV)
+│   │   ├── favorites.js          # Favorites management utilities
+│   │   └── searchHistory.js      # Search history localStorage utilities
+│   └── tests/
+│       └── setup.js              # Test configuration
 │   ├── App.jsx          # Main application component
 │   ├── index.css        # Global styles and Tailwind CSS import
 │   └── main.jsx         # Application entry point
@@ -123,6 +178,8 @@ The application uses a **data-heavy aesthetic** inspired by Bloomberg terminals 
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
+- `npm run test` - Run tests with Vitest
+- `npm run test:ui` - Run tests with UI interface
 
 ### Tailwind CSS v4 Setup
 
@@ -134,10 +191,15 @@ This project uses **Tailwind CSS v4**, which requires:
 
 ### Key Architectural Decisions
 
-- **State Management:** Custom `useSelection` hook for multi-select (no Redux/Zustand needed)
+- **State Management:** React Context (`AppContext`) for global state, custom `useSelection` hook for multi-select
 - **API Abstraction:** YouTube API logic isolated in `youtubeService.js` for easy backend integration
 - **Component Structure:** Separation of concerns with dedicated components for each UI element
 - **Responsive Design:** Mobile-first approach with Tailwind responsive utilities
+- **Data Persistence:** localStorage for search history, collections, favorites, API key, and user preferences
+- **Utility Modules:** Separate utility files for date presets, export, collections, search history, favorites, and channel matching
+- **Client-Side Filtering:** Channel name filtering and sorting performed client-side for flexibility
+- **Fuzzy Matching:** Levenshtein distance algorithm for channel name suggestions
+- **Testing:** Vitest for unit testing hooks and utilities
 
 ## Troubleshooting
 

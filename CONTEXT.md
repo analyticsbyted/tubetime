@@ -77,23 +77,117 @@ The development process was not without its challenges. The most significant and
 
 -   **Component Improvements:**
     - Search bar redesigned with labeled inputs and grid layout
+    - End date field is optional (no default) - allows searching recent content without specifying end date
     - Video cards with improved hover states and selection indicators
     - Action bar with better positioning and styling
+    - Footer component added with copyright notice (© 2025 Ted Dickey II)
     - Settings modal with improved UX and keyboard shortcuts
     - Loading states with spinner animations
     - Empty states with helpful messaging
 
+### Feature Enhancements (v1.1.0)
+
+-   **Search Enhancements:**
+    - Search history with localStorage persistence and quick re-run
+    - Bulk date range presets (Last 7/30 days, This Month, Last Year)
+    - Advanced filters: channel name, duration, sort order, language
+    - Pagination support with "Load More" functionality
+    
+-   **Selection Management:**
+    - Select All / Deselect All functionality
+    - Selection counter displayed in header
+    - Enhanced useSelection hook with additional methods
+    
+-   **Collections & Export:**
+    - Save selected videos as collections/playlists
+    - Export to JSON, CSV, or video IDs only
+    - Collections stored in localStorage
+    
+-   **Analytics & Metadata:**
+    - Search statistics dashboard with comprehensive metrics
+    - Video metadata display (views, likes, comments, duration)
+    - Channel distribution and top channels analysis
+    - Average duration calculations
+    
+-   **Testing Infrastructure:**
+    - Vitest testing framework configured
+    - Test files for hooks and utilities
+    - Test setup and configuration
+
 ## Current Status
 
-The application is now in a stable, production-ready state:
+The application is now in a stable, production-ready state with enhanced features:
 
 ✅ **Configuration:** PostCSS and Tailwind CSS v4 are properly configured  
 ✅ **Styling:** All Tailwind classes are being applied correctly  
 ✅ **Layout:** Responsive, mobile-first design with proper constraints  
-✅ **Features:** All Phase 1 features are implemented and working  
+✅ **Core Features:** All Phase 1 features are implemented and working  
+✅ **Enhanced Features:** Search history, filters, pagination, collections, export, analytics  
 ✅ **Design:** Matches the reference design with red accents and dark theme  
-✅ **API Integration:** YouTube API abstraction layer is complete  
-✅ **State Management:** Multi-select functionality working correctly  
+✅ **API Integration:** YouTube API abstraction layer with metadata fetching  
+✅ **State Management:** Multi-select functionality with select all/deselect all  
+✅ **Data Persistence:** localStorage for history, collections, and API key  
+✅ **Testing:** Test infrastructure in place with sample tests  
+✅ **Footer:** Copyright footer component implemented  
+✅ **Search UX:** Optional end date allows searching recent content by default  
+✅ **State Management:** Refactored to React Context for better scalability  
+✅ **Error Handling:** Comprehensive error handling in all utility functions  
+✅ **Favorites System:** Save and manage favorite searches and channels  
+✅ **Channel Filtering:** Clickable channels in stats, fuzzy matching suggestions  
+✅ **Sort Functionality:** Client-side sorting with dedicated SortBar component  
+
+### State Management Refactoring (v1.2.0)
+
+As the application grew, the centralized state in `App.jsx` became unwieldy and led to prop-drilling issues. A comprehensive refactoring was performed:
+
+**React Context Implementation:**
+- Created `src/context/AppContext.jsx` to centralize all application state
+- Moved search state, selection state, API key management, and modal states to context
+- Implemented `useAppContext()` hook for easy access throughout component tree
+- Wrapped application with `AppProvider` in `main.jsx`
+
+**Benefits:**
+- Eliminated prop-drilling - components can access state directly via hook
+- Better separation of concerns - state logic separated from UI components
+- Improved maintainability - easier to add new features without modifying multiple components
+- Better scalability - ready for future features like user authentication, collections management, etc.
+
+**Utility Functions Enhancement:**
+All utility functions (`collections.js`, `searchHistory.js`, `export.js`) were enhanced with:
+- localStorage availability checks (handles private browsing, disabled storage)
+- Quota exceeded error handling (automatic cleanup strategies)
+- Data validation and corruption detection (prevents app crashes)
+- Better error messages (user-friendly feedback)
+- Type validation (JSDoc comments for better type safety)
+
+### Recent Bug Fixes & Enhancements (v1.3.0)
+
+**Favorites System Implementation:**
+- Created `FavoritesSidebar` component for managing favorite searches and channels
+- Implemented `favorites.js` utility for localStorage persistence
+- Added ability to save channels from Top Channels section in SearchStats
+- Fixed nested button HTML validation error in FavoritesSidebar (restructured to use div containers)
+- Fixed channel favorites not returning results when selected (now saves and loads search parameters including date ranges)
+
+**Channel Filtering Enhancements:**
+- Created `ChannelSuggestions` component with fuzzy matching using Levenshtein distance
+- Implemented `channelMatcher.js` utility for flexible channel name matching
+- Made channel names clickable in SearchStats to filter results
+- Added star icon to add/remove channels from favorites directly from stats
+
+**Sort Functionality:**
+- Created `SortBar` component for client-side sorting
+- Supports sorting by date (newest/oldest), relevance, rating, title (A-Z/Z-A), views (most/least), channel (A-Z/Z-A)
+- Sort order persists across searches
+
+**Date Presets:**
+- Added "Last 24 Hours" preset option
+- Default preset changed to "Last 7 Days" on initial load
+
+**Search Enhancements:**
+- Made search query optional when channel name is provided
+- Added results per page selector (10, 20, 50, 100) with persistence
+- Improved channel search to be less strict with fuzzy matching
 
 ### Known Issues
 

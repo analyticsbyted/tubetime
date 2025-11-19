@@ -12,22 +12,10 @@ const toRFC3339 = (dateString) => {
   return new Date(dateString).toISOString();
 };
 
-/**
- * Gets today's date in YYYY-MM-DD format for date input
- * @returns {string} Today's date in YYYY-MM-DD format
- */
-const getTodayDate = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 const SearchBar = ({ onSearch, isLoading }) => {
   const [query, setQuery] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState(getTodayDate());
+  const [endDate, setEndDate] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
