@@ -141,12 +141,17 @@ function HomePageContent() {
     }
   };
 
-  // Handle history selection
-  const handleSelectHistory = (query, startDate, endDate) => {
+  // Handle history selection (now supports full search parameters)
+  const handleSelectHistory = (query, startDate, endDate, channelName, duration, language, order, maxResults) => {
     handleSearch({
-      query,
+      query: query || '',
+      channelName: channelName || '',
       startDate: startDate || undefined,
       endDate: endDate || undefined,
+      duration: duration || undefined,
+      language: language || undefined,
+      order: order || 'date',
+      maxResults: maxResults || 20,
     });
   };
 

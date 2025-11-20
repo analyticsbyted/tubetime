@@ -54,4 +54,4 @@ if (typeof authHandler === 'function') {
   POST = authHandler
 }
 
-export { GET, POST }
+export { GET, POST, authOptions }

@@ -378,18 +378,21 @@ During implementation, several technical decisions were made:
      - `Collection` - User-created video collections/playlists
      - `Video` - YouTube video metadata (id, title, channelTitle, publishedAt, thumbnailUrl)
      - `VideosInCollections` - Many-to-many join table linking videos to collections
-     - `SearchHistory` - User search query history
+     - `SearchHistory` - User search query history (expanded with full search parameters)
+     - `Favorite` - User favorites for searches and channels
+     - `TranscriptionQueue` - Video transcription queue with status tracking
    - ✅ **Relations**: All models properly linked with foreign keys and cascade deletes
-   - ✅ **Database Migrations**: Two migrations applied successfully:
+   - ✅ **Database Migrations**: Three migrations applied successfully:
      - Initial migration (`20251119223544_init`) - Created User table
      - App and Auth models (`20251119230535_add_app_and_auth_models`) - Added all authentication and application tables
+     - Schema expansion (`20251120023547_add_favorites_and_transcription_queue_expand_search_history`) - Added Favorite and TranscriptionQueue models, expanded SearchHistory
 
 2. **Authentication Backend:**
    - ✅ **NextAuth.js Installation**: Installed `next-auth@4.24.13` and `@next-auth/prisma-adapter@1.0.7`
    - ✅ **API Route**: Created `/app/api/auth/[...nextauth]/route.js` with Prisma adapter
    - ✅ **OAuth Providers**: Configured Google and GitHub providers (requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_ID`, `GITHUB_SECRET` environment variables)
    - ✅ **Session Management**: Integrated with Prisma for persistent sessions
-   - ✅ **Prisma Client Setup**: Created `lib/prisma.js` singleton for database access
+   - ✅ **Prisma Client Setup**: Created `src/lib/prisma.js` singleton for database access
    - ✅ **Prisma Version**: Standardized on Prisma v6.19.0 for stability and reliability
 
 3. **Authentication UI:**
@@ -436,12 +439,177 @@ During initial authentication setup, several issues were encountered and resolve
    - **Issue**: `experimental.esmExternals` option was causing warnings
    - **Solution**: Removed deprecated option from `next.config.js`
 
+**Phase 1: Schema Updates (v4.2.0) - ✅ COMPLETE:**
+
+1. **SearchHistory Model Expansion:**
+   - Expanded from single `query` field to individual fields for all search parameters
+   - Made `query` optional to support channel-only searches
+   - Added fields: `channelName`, `startDate`, `endDate`, `duration`, `language`, `order`, `maxResults`
+   - Added indexes: `[userId, createdAt]` and `[userId, query]` for performance
+
+2. **Favorite Model Creation:**
+   - Created new `Favorite` model for user favorites
+   - Stores both search and channel favorites with JSON data field
+   - Type field distinguishes between 'search' and 'channel' favorites
+   - Indexed by `[userId, type]` and `[userId, createdAt]` for efficient queries
+
+3. **TranscriptionQueue Model Creation:**
+   - Created new `TranscriptionQueue` model for video transcription management
+   - Status tracking: 'pending', 'processing', 'completed', 'failed'
+   - Priority system for queue ordering
+   - Error message storage for failed transcriptions
+   - Unique constraint on `[userId, videoId]` prevents duplicate entries
+   - Indexed by `[userId, status]` and `[userId, createdAt]` for efficient queue queries
+
+4. **Model Relations Updated:**
+   - `User` model: Added `favorites` and `transcriptionQueue` relations
+   - `Video` model: Added `transcriptionQueue` relation
+
+**Migration Applied:** `20251120023547_add_favorites_and_transcription_queue_expand_search_history`
+
+**Phase 2: Collections API Routes (v4.2.1) - ✅ BACKEND COMPLETE:**
+
+1. **API Routes Implemented:**
+   - ✅ `GET /api/collections` - List user's collections
+   - ✅ `POST /api/collections` - Create new collection
+   - ✅ `GET /api/collections/[id]` - Get specific collection with videos
+   - ✅ `PUT /api/collections/[id]` - Update collection (rename)
+   - ✅ `DELETE /api/collections/[id]` - Delete collection
+   - ✅ `POST /api/collections/[id]/videos` - Add video to collection
+
+2. **Implementation Quality:**
+   - ✅ Proper authentication with `getServerSession`
+   - ✅ User scoping (all queries filtered by userId)
+   - ✅ Authorization checks (authorizeCollection helper)
+   - ✅ Video upsert logic (always updates metadata)
+   - ✅ Comprehensive error handling (401, 403, 404, 500)
+   - ✅ Proper Prisma error code handling (P2002, P2025)
+   - ✅ Input validation
+
+3. **Code Quality:**
+   - ✅ Clean helper functions
+   - ✅ Consistent error handling pattern
+   - ✅ Good code organization
+   - ✅ Proper comments
+
+**Phase 2: Collections Frontend Integration (v4.3.0) - ✅ COMPLETE:**
+
+1. **Frontend Integration:**
+   - ✅ Created `collectionsService.js` API client with all CRUD operations
+   - ✅ Updated `CollectionModal.jsx` to use API routes
+   - ✅ Implemented dual-write pattern (database + localStorage)
+   - ✅ Added authentication integration with NextAuth.js
+   - ✅ Comprehensive error handling and user feedback
+   - ✅ Loading states and disabled states during operations
+
+2. **Testing:**
+   - ✅ All test scenarios passed successfully
+   - ✅ Authenticated flow verified
+   - ✅ Unauthenticated flow verified
+   - ✅ Dual-write behavior verified
+   - ✅ Error handling verified
+   - ✅ Edge cases verified
+
+3. **Documentation:**
+   - ✅ Created `TESTING_COLLECTIONS.md` testing guide
+   - ✅ Created `COLLECTIONS_IMPLEMENTATION_SUMMARY.md` summary
+
+**Phase 3: Search History API Routes & Frontend Integration (v4.4.0) - ✅ COMPLETE:**
+
+1. **API Routes:**
+   - ✅ `GET /api/search-history` - List user's search history
+   - ✅ `POST /api/search-history` - Save new search
+   - ✅ `DELETE /api/search-history` - Clear all history
+   - ✅ `DELETE /api/search-history/[id]` - Delete specific entry
+
+2. **Frontend Integration:**
+   - ✅ Created `searchHistoryService.js` API client
+   - ✅ Updated `searchHistory.js` utility with dual-write pattern
+   - ✅ Updated `SearchHistory.jsx` component with async API
+   - ✅ Updated `useVideoSearch.js` to save all search parameters
+   - ✅ Updated `page.jsx` to restore all search parameters
+
+3. **Features:**
+   - ✅ Full parameter support (query, channelName, dates, filters, etc.)
+   - ✅ Duplicate detection (prevents saving same search within 1 minute)
+   - ✅ Automatic cleanup (keeps only last 50 entries per user)
+   - ✅ Dual-write pattern (database + localStorage)
+   - ✅ Backward compatibility maintained
+
+4. **Documentation:**
+   - ✅ Created `SEARCH_HISTORY_IMPLEMENTATION_SUMMARY.md`
+   - ✅ Created `TESTING_PHASE3_PHASE4.md` comprehensive testing guide
+
+5. **Bug Fixes (v4.5.1):**
+   - ✅ Fixed empty array handling in `getSearchHistory()`
+   - ✅ Fixed race conditions in `SearchHistory.jsx`
+
 **Remaining Phase 2 Tasks:**
--   Replace all `localStorage` utility functions with API routes that perform database operations via Prisma:
-    - `collections.js` → API routes for Collection CRUD operations
-    - `searchHistory.js` → API routes for SearchHistory operations
-    - `transcriptionQueue.js` → API routes for transcription queue management
-    - `favorites.js` → API routes for favorites management
--   Integrate a transcription service (e.g., Whisper API) and cache results in the database
--   Implement row-level security to ensure users can only access their own data
--   Add user-scoped queries to all API routes (filter by `userId` from session)
+-   ✅ **Frontend Integration (High Priority):** COMPLETE
+
+**Phase 4: Favorites API Routes & Frontend Integration (v4.5.0) - ✅ COMPLETE:**
+
+1. **API Routes:**
+   - ✅ `GET /api/favorites` - List user's favorites (with optional type filter)
+   - ✅ `POST /api/favorites` - Create new favorite (with duplicate detection)
+   - ✅ `DELETE /api/favorites` - Clear all favorites
+   - ✅ `GET /api/favorites/[id]` - Get specific favorite
+   - ✅ `PUT /api/favorites/[id]` - Update favorite
+   - ✅ `DELETE /api/favorites/[id]` - Delete specific favorite
+   - ✅ `GET /api/favorites/check` - Check if favorite exists by name and type
+
+2. **Frontend Integration:**
+   - ✅ Created `src/services/favoritesService.js` API client
+   - ✅ Updated `src/utils/favorites.js` with dual-write pattern
+   - ✅ Updated `FavoritesSidebar.jsx` with async API integration
+   - ✅ Updated `EnhancedSearchBar.jsx` to use async favorites API
+   - ✅ Updated `SearchStats.jsx` to use async favorites API
+
+3. **Features:**
+   - ✅ Duplicate detection (prevents duplicate favorites by name+type)
+   - ✅ Update existing favorites if name+type match
+   - ✅ Dual-write pattern (database + localStorage)
+   - ✅ Handles both database IDs (cuid) and localStorage IDs
+
+4. **Documentation:**
+   - ✅ Created `FAVORITES_IMPLEMENTATION_SUMMARY.md`
+   - ✅ Created `TESTING_PHASE3_PHASE4.md` comprehensive testing guide
+
+5. **Bug Fixes (v4.5.1):**
+   - ✅ Fixed race conditions in `FavoritesSidebar.jsx`
+
+-   **Other localStorage Migrations:**
+    - ✅ `searchHistory.js` → API routes for SearchHistory operations (Phase 3 - COMPLETE)
+    - ✅ `favorites.js` → API routes for favorites management (Phase 4 - COMPLETE)
+    - ⏳ `transcriptionQueue.js` → API routes for transcription queue management (Phase 5 - Lower Priority)
+
+-   **Future Enhancements:**
+    - Bulk video addition endpoint (optimization)
+    - Collection creation with videos in one request (UX improvement)
+    - Integrate transcription service (e.g., Whisper API)
+    - Add rate limiting to API routes (post-core functionality)
+
+## Project Structure (as of v4.5.2)
+
+The repository now organizes shared documentation and test suites in dedicated top-level folders:
+
+```
+/
+├── app/                     # Next.js App Router entry points and layouts
+├── docs/                    # All project documentation (context, changelog, migration plan, testing guides, summaries)
+├── prisma/                  # Prisma schema and migrations
+├── public/                  # Static assets
+├── src/                     # Frontend components, hooks, services, utilities
+├── tests/                   # Vitest suites (mirrors src structure where applicable)
+├── lib/                     # Server-side helpers (e.g., Prisma client singleton)
+├── package.json, etc.       # Tooling configuration
+└── README.md                # Getting started guide with pointers into docs/
+```
+
+Key notes:
+
+- `docs/` centralizes every Markdown reference to keep the repo root focused on code. Link to files as `./docs/<file>.md`.
+- `tests/` houses all Vitest specs, separating test code from runtime bundles. Update Vitest globs as new suites are added.
+- Generated Prisma client artifacts live under `src/generated/prisma/`; regenerate via `npx prisma generate`.
+
+This structure should be updated whenever a new top-level concern is introduced (e.g., e2e tests folder or additional documentation sets).

@@ -8,18 +8,45 @@ const SearchStats = ({ videos, totalResults, onChannelClick, currentSearchParams
   const [favoritedChannels, setFavoritedChannels] = useState(new Set());
 
   useEffect(() => {
-    // Check which channels are favorited
-    const channels = new Set(videos.map(v => v.channelTitle));
-    const favorited = new Set();
-    channels.forEach(channel => {
-      if (isFavorited(channel, 'channel')) {
-        favorited.add(channel);
+    // Check which channels are favorited (async)
+    let cancelled = false;
+    
+    const checkFavoritedChannels = async () => {
+      if (!videos || videos.length === 0) {
+        setFavoritedChannels(new Set());
+        return;
       }
-    });
-    setFavoritedChannels(favorited);
+      
+      const channels = new Set(videos.map(v => v.channelTitle));
+      const favorited = new Set();
+      
+      // Check each channel asynchronously
+      const checks = Array.from(channels).map(async (channel) => {
+        if (cancelled) return;
+        try {
+          const isFav = await isFavorited(channel, 'channel');
+          if (isFav && !cancelled) {
+            favorited.add(channel);
+          }
+        } catch (error) {
+          console.warn(`Failed to check favorite status for ${channel}:`, error);
+        }
+      });
+      
+      await Promise.all(checks);
+      if (!cancelled) {
+        setFavoritedChannels(favorited);
+      }
+    };
+    
+    checkFavoritedChannels();
+    
+    return () => {
+      cancelled = true;
+    };
   }, [videos]);
 
-  const handleToggleFavorite = (e, channelName) => {
+  const handleToggleFavorite = async (e, channelName) => {
     e.stopPropagation();
     
     try {
@@ -27,9 +54,9 @@ const SearchStats = ({ videos, totalResults, onChannelClick, currentSearchParams
       
       if (isFav) {
         // Remove from favorites
-        const favorite = getFavorite(channelName, 'channel');
+        const favorite = await getFavorite(channelName, 'channel');
         if (favorite) {
-          deleteFavorite(favorite.id);
+          await deleteFavorite(favorite.id);
           setFavoritedChannels(prev => {
             const next = new Set(prev);
             next.delete(channelName);
@@ -47,7 +74,7 @@ const SearchStats = ({ videos, totalResults, onChannelClick, currentSearchParams
           duration: currentSearchParams?.duration,
           language: currentSearchParams?.language,
         };
-        saveFavorite(channelName, 'channel', favoriteData);
+        await saveFavorite(channelName, 'channel', favoriteData);
         setFavoritedChannels(prev => new Set(prev).add(channelName));
         toast.success(`"${channelName}" added to favorites`);
       }

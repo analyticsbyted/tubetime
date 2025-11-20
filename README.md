@@ -17,7 +17,8 @@ TubeTime is a historical YouTube search engine that allows users to search, cura
 
 #### User & Data Persistence
 -   **Authentication:** User accounts and session management powered by NextAuth.js.
--   **Database Backend:** User data, collections, and search history are stored in a PostgreSQL database (Neon) via Prisma.
+-   **Database Backend:** User data, collections, search history, favorites, and transcription queue are stored in a PostgreSQL database (Neon) via Prisma.
+-   **Migration Status:** Schema complete (v4.2.0). API routes implementation in progress. See [MIGRATION_PLAN.md](./docs/MIGRATION_PLAN.md) for details.
 
 ## Tech Stack
 
@@ -30,6 +31,17 @@ TubeTime is a historical YouTube search engine that allows users to search, cura
 -   **Icons:** Lucide React
 
 ## Getting Started
+
+## Documentation
+
+All project documentation now lives under `docs/`. Key references:
+
+- [CHANGELOG](./docs/CHANGELOG.md)
+- [CONTEXT](./docs/CONTEXT.md)
+- [MIGRATION_PLAN](./docs/MIGRATION_PLAN.md)
+- [Implementation Summaries & Testing Guides](./docs/)
+
+Use these files for architecture history, migration steps, and testing procedures.
 
 ### Prerequisites
 
@@ -131,7 +143,7 @@ Prisma is used to manage your database schema and client.
 
 ## Design System
 
-TubeTime follows a "Data Heavy" dark mode aesthetic. For detailed design guidelines, component patterns, and UI/UX changes, see [UIUX.md](./UIUX.md).
+TubeTime follows a "Data Heavy" dark mode aesthetic. For detailed design guidelines, component patterns, and UI/UX changes, see [UIUX.md](./docs/UIUX.md).
 
 **Key Design Principles:**
 - No pure white or pure black colors (uses off-white `zinc-100` and off-black `zinc-950`)
@@ -215,7 +227,7 @@ TubeTime follows a "Data Heavy" dark mode aesthetic. For detailed design guideli
 - **Cause**: Tailwind CSS v4 generates some browser-specific CSS that triggers warnings
 - **Solution**: These warnings are harmless and can be ignored
 
-For more detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+For more detailed troubleshooting, see [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
 
 ## Project Structure
 
@@ -226,19 +238,26 @@ tubetime/
 ├── app/
 │   ├── api/
 │   │   ├── auth/[...nextauth]/  # NextAuth.js dynamic route
+│   │   ├── collections/         # API routes for Collections
+│   │   ├── search-history/      # API routes for Search History
 │   │   └── youtube/search/      # Server-side YouTube search
 │   └── page.jsx                 # Main page component
+├── docs/                        # Project documentation (CHANGELOG, CONTEXT, etc.)
 ├── prisma/
 │   └── schema.prisma            # Prisma schema definition
 ├── public/
 ├── src/
 │   ├── components/
 │   ├── hooks/                   # Custom React hooks (useVideoSearch, etc.)
+│   ├── services/                # Frontend API service clients
 │   └── generated/
 │       └── prisma/              # Generated Prisma client
+├── tests/                       # Unit and integration tests
 ├── lib/
 │   └── prisma.js                # Prisma client singleton
-├── jsconfig.json                # Path alias configuration (@/ points to root)
-├── .env.local                   # Environment variables (not committed)
-└── package.json
+├── .env                         # Environment variables
+├── next.config.js               # Next.js configuration
+├── package.json
+├── postcss.config.js            # PostCSS configuration (Tailwind CSS v4)
+└── tailwind.config.js           # Tailwind CSS configuration
 ```

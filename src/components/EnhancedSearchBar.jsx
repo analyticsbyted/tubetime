@@ -94,7 +94,7 @@ const EnhancedSearchBar = ({ onSearch, isLoading, onShowHistory, availableChanne
     clearFilters();
   };
 
-  const handleSaveFavorite = () => {
+  const handleSaveFavorite = async () => {
     const hasQuery = query.trim().length > 0;
     const hasChannelName = channelName.trim().length > 0;
     
@@ -110,7 +110,8 @@ const EnhancedSearchBar = ({ onSearch, isLoading, onShowHistory, availableChanne
       const favoriteType = hasChannelName ? 'channel' : 'search';
       
       // Check if already favorited
-      if (isFavorited(favoriteName, favoriteType)) {
+      const isFav = await isFavorited(favoriteName, favoriteType);
+      if (isFav) {
         toast.info('This is already in your favorites.');
         return;
       }
@@ -124,7 +125,7 @@ const EnhancedSearchBar = ({ onSearch, isLoading, onShowHistory, availableChanne
         language: language || undefined,
       };
       
-      saveFavorite(favoriteName, favoriteType, favoriteData);
+      await saveFavorite(favoriteName, favoriteType, favoriteData);
       toast.success(`"${favoriteName}" saved to favorites!`);
     } catch (error) {
       console.error('Failed to save favorite:', error);

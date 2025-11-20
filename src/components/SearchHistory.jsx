@@ -1,21 +1,72 @@
-import React from 'react';
-import { History, X, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { History, X, Clock, Loader2 } from 'lucide-react';
 import { getSearchHistory, formatHistoryTimestamp, clearSearchHistory } from '../utils/searchHistory';
 
 const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
-  const history = getSearchHistory();
+  const [history, setHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load history when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    let cancelled = false;
+    
+    const loadHistory = async () => {
+      setIsLoading(true);
+      try {
+        const loadedHistory = await getSearchHistory();
+        if (!cancelled) {
+          setHistory(loadedHistory);
+        }
+      } catch (error) {
+        console.error('Failed to load search history:', error);
+        if (!cancelled) {
+          setHistory([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadHistory();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSelect = (entry) => {
-    onSelectSearch(entry.query, entry.startDate, entry.endDate);
+    // Pass all search parameters for full restoration
+    onSelectSearch(
+      entry.query || '',
+      entry.startDate || '',
+      entry.endDate || '',
+      entry.channelName || '',
+      entry.duration || '',
+      entry.language || '',
+      entry.order || '',
+      entry.maxResults || null
+    );
     onClose();
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (window.confirm('Clear all search history?')) {
-      clearSearchHistory();
-      onClose();
+      try {
+        await clearSearchHistory();
+        setHistory([]);
+        onClose();
+      } catch (error) {
+        console.error('Failed to clear search history:', error);
+        // Still clear local state even if API call fails
+        setHistory([]);
+        onClose();
+      }
     }
   };
 
@@ -46,41 +97,58 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
         </div>
         
         <div className="overflow-y-auto flex-1 p-4">
-          {history.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 text-zinc-500">
+              <Loader2 className="w-12 h-12 mx-auto mb-4 opacity-20 animate-spin" />
+              <p>Loading history...</p>
+            </div>
+          ) : history.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
               <History className="w-12 h-12 mx-auto mb-4 opacity-20" />
               <p>No search history yet</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {history.map((entry, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSelect(entry)}
-                  className="w-full text-left p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700 hover:border-zinc-600"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-zinc-100 truncate">{entry.query}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400">
-                        {entry.startDate && (
-                          <span>From: {new Date(entry.startDate).toLocaleDateString()}</span>
-                        )}
-                        {entry.endDate && (
-                          <span>To: {new Date(entry.endDate).toLocaleDateString()}</span>
-                        )}
-                        {!entry.startDate && !entry.endDate && (
-                          <span>No date filter</span>
-                        )}
+              {history.map((entry, index) => {
+                const displayQuery = entry.query || entry.channelName || 'Channel search';
+                return (
+                  <button
+                    key={entry.id || index}
+                    onClick={() => handleSelect(entry)}
+                    className="w-full text-left p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700 hover:border-zinc-600"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-zinc-100 truncate">{displayQuery}</p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400 flex-wrap">
+                          {entry.channelName && entry.query && (
+                            <span className="text-zinc-500">Channel: {entry.channelName}</span>
+                          )}
+                          {entry.startDate && (
+                            <span>From: {new Date(entry.startDate).toLocaleDateString()}</span>
+                          )}
+                          {entry.endDate && (
+                            <span>To: {new Date(entry.endDate).toLocaleDateString()}</span>
+                          )}
+                          {entry.duration && (
+                            <span>Duration: {entry.duration}</span>
+                          )}
+                          {entry.language && (
+                            <span>Lang: {entry.language}</span>
+                          )}
+                          {!entry.startDate && !entry.endDate && !entry.channelName && !entry.duration && !entry.language && (
+                            <span>No filters</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-500 shrink-0">
+                        <Clock className="w-3 h-3" />
+                        {formatHistoryTimestamp(entry.timestamp || entry.createdAt)}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 shrink-0">
-                      <Clock className="w-3 h-3" />
-                      {formatHistoryTimestamp(entry.timestamp)}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

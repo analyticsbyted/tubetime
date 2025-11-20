@@ -53,14 +53,23 @@ export function useVideoSearch() {
           return Array.from(combined).sort();
         });
 
-        // Save to search history (only if query is provided)
-        if (searchParams.query?.trim()) {
+        // Save to search history (if query or channelName is provided)
+        const hasQuery = searchParams.query?.trim().length > 0;
+        const hasChannelName = searchParams.channelName?.trim().length > 0;
+        
+        if (hasQuery || hasChannelName) {
           try {
-            saveSearchHistory(
-              searchParams.query,
-              searchParams.startDate || '',
-              searchParams.endDate || ''
-            );
+            // Save all search parameters to history
+            await saveSearchHistory({
+              query: searchParams.query,
+              channelName: searchParams.channelName,
+              startDate: searchParams.startDate,
+              endDate: searchParams.endDate,
+              duration: searchParams.duration,
+              language: searchParams.language,
+              order: searchParams.order,
+              maxResults: searchParams.maxResults,
+            });
           } catch (error) {
             console.warn('Failed to save search history:', error);
           }

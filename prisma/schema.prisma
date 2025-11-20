@@ -23,8 +23,10 @@ model User {
   sessions      Session[]
 
   // --- APPLICATION DATA ---
-  collections   Collection[]
-  searchHistory SearchHistory[]
+  collections        Collection[]
+  searchHistory      SearchHistory[]
+  favorites          Favorite[]
+  transcriptionQueue TranscriptionQueue[]
 }
 
 model Account {
@@ -62,27 +64,27 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-
 // --- APPLICATION MODELS ---
 
 model Collection {
-  id        String    @id @default(cuid())
+  id        String                @id @default(cuid())
   name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   videos    VideosInCollections[] // Many-to-many relation
 }
 
 model Video {
-  id           String    @id // The YouTube Video ID
+  id           String   @id // The YouTube Video ID
   title        String
   channelTitle String
   publishedAt  DateTime
   thumbnailUrl String
-  
-  collections  VideosInCollections[] // Many-to-many relation
+
+  collections        VideosInCollections[] // Many-to-many relation
+  transcriptionQueue TranscriptionQueue[] // Videos in transcription queue
 }
 
 // Join table for the many-to-many relationship between Videos and Collections
@@ -97,9 +99,51 @@ model VideosInCollections {
 }
 
 model SearchHistory {
-  id        String      @id @default(cuid())
-  query     String      // Store the search parameters as a JSON string or individual fields
-  createdAt DateTime    @default(now())
+  id          String   @id @default(cuid())
+  query       String? // Search query (optional if searching by channel only)
+  channelName String? // Channel name filter
+  startDate   String? // RFC 3339 formatted start date
+  endDate     String? // RFC 3339 formatted end date
+  duration    String? // Duration filter: 'short', 'medium', 'long'
+  language    String? // Language code (e.g., 'en', 'es')
+  order       String? // Sort order: 'date', 'relevance', 'rating', 'title', 'viewCount', etc.
+  maxResults  Int? // Maximum results per page
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, query])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  name      String
+  type      String // 'search' or 'channel'
+  data      Json // Store search params or channel info as JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([userId, createdAt])
+}
+
+model TranscriptionQueue {
+  id           String    @id @default(cuid())
+  videoId      String
+  status       String    @default("pending") // 'pending', 'processing', 'completed', 'failed'
+  priority     Int       @default(0) // Higher number = higher priority
+  errorMessage String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  completedAt  DateTime?
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video        Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }

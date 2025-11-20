@@ -1,9 +1,14 @@
 /**
- * Search history utilities using localStorage
+ * Search history utilities using localStorage with dual-write pattern
+ * 
+ * During migration period, writes to both database (via API) and localStorage.
+ * Reads prioritize database but fallback to localStorage for unauthenticated users.
  * 
  * Includes error handling for localStorage quota, invalid JSON,
  * and browser privacy settings.
  */
+
+import * as searchHistoryService from '../services/searchHistoryService';
 
 const SEARCH_HISTORY_KEY = 'tubetime_search_history';
 const MAX_HISTORY_ITEMS = 10;
@@ -31,44 +36,88 @@ const isLocalStorageAvailable = () => {
 const isValidHistoryEntry = (entry) => {
   return entry &&
     typeof entry === 'object' &&
-    typeof entry.query === 'string' &&
+    (entry.query === undefined || typeof entry.query === 'string') &&
+    (entry.channelName === undefined || typeof entry.channelName === 'string') &&
     typeof entry.timestamp === 'string' &&
     (entry.startDate === undefined || typeof entry.startDate === 'string') &&
     (entry.endDate === undefined || typeof entry.endDate === 'string');
 };
 
 /**
- * Saves a search to history
- * @param {string} query - Search query
- * @param {string} startDate - Start date (optional)
- * @param {string} endDate - End date (optional)
- * @returns {boolean} True if saved successfully
+ * Saves a search to history (dual-write pattern)
+ * @param {Object|string} searchParamsOrQuery - Search parameters object OR query string (for backward compatibility)
+ * @param {string} [startDate] - Start date (optional, for backward compatibility)
+ * @param {string} [endDate] - End date (optional, for backward compatibility)
+ * @returns {Promise<boolean>} True if saved successfully (at least to localStorage)
  */
-export const saveSearchHistory = (query, startDate = '', endDate = '') => {
-  if (!isLocalStorageAvailable()) {
-    console.warn('localStorage not available. Search history will not be saved.');
-    return false;
+export const saveSearchHistory = async (searchParamsOrQuery, startDate = '', endDate = '') => {
+  // Handle backward compatibility: if first param is string, treat as old API
+  let searchParams;
+  if (typeof searchParamsOrQuery === 'string') {
+    searchParams = {
+      query: searchParamsOrQuery,
+      startDate: startDate || '',
+      endDate: endDate || '',
+    };
+  } else {
+    searchParams = searchParamsOrQuery || {};
   }
 
-  if (!query || !query.trim()) {
-    return false; // Don't save empty queries
+  // Validate: either query or channelName must be provided
+  const hasQuery = searchParams.query?.trim().length > 0;
+  const hasChannelName = searchParams.channelName?.trim().length > 0;
+  
+  if (!hasQuery && !hasChannelName) {
+    return false; // Don't save empty searches
+  }
+
+  let dbSuccess = false;
+  let localStorageSuccess = false;
+
+  // 1. Try to save to database if authenticated (check session via window check)
+  // Note: We can't use useSession hook here since this is a utility function
+  // We'll check authentication in the API route instead
+  try {
+    await searchHistoryService.saveSearchHistory(searchParams);
+    dbSuccess = true;
+  } catch (dbError) {
+    // Continue to localStorage fallback
+    if (dbError.message.includes('Unauthorized') || dbError.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue silently
+    } else {
+      console.warn('Database save failed, continuing with localStorage:', dbError);
+    }
+  }
+
+  // 2. Always save to localStorage during dual-write period
+  if (!isLocalStorageAvailable()) {
+    console.warn('localStorage not available.');
+    return dbSuccess; // Return true if database save succeeded
   }
 
   try {
-    const history = getSearchHistory();
+    const history = getSearchHistoryLocal();
     const newEntry = {
-      query: query.trim(),
-      startDate: startDate || '',
-      endDate: endDate || '',
+      query: searchParams.query?.trim() || '',
+      channelName: searchParams.channelName?.trim() || '',
+      startDate: searchParams.startDate || '',
+      endDate: searchParams.endDate || '',
+      duration: searchParams.duration || '',
+      language: searchParams.language || '',
+      order: searchParams.order || '',
+      maxResults: searchParams.maxResults || null,
       timestamp: new Date().toISOString(),
     };
     
-    // Remove duplicates (same query + dates)
+    // Remove duplicates (same search parameters)
     const filtered = history.filter(
       item => !(
         item.query === newEntry.query && 
+        item.channelName === newEntry.channelName &&
         item.startDate === newEntry.startDate && 
-        item.endDate === newEntry.endDate
+        item.endDate === newEntry.endDate &&
+        item.duration === newEntry.duration &&
+        item.language === newEntry.language
       )
     );
     
@@ -76,15 +125,16 @@ export const saveSearchHistory = (query, startDate = '', endDate = '') => {
     const updated = [newEntry, ...filtered].slice(0, MAX_HISTORY_ITEMS);
     
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
-    return true;
+    localStorageSuccess = true;
   } catch (error) {
-    console.error('Failed to save search history:', error);
+    console.error('Failed to save search history to localStorage:', error);
     // If quota exceeded, try removing oldest entries
     if (error.name === 'QuotaExceededError') {
       try {
-        const history = getSearchHistory();
+        const history = getSearchHistoryLocal();
         const reduced = history.slice(0, Math.floor(MAX_HISTORY_ITEMS / 2));
         localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(reduced));
+        localStorageSuccess = true;
       } catch {
         // If still fails, clear history
         try {
@@ -94,15 +144,16 @@ export const saveSearchHistory = (query, startDate = '', endDate = '') => {
         }
       }
     }
-    return false;
   }
+
+  return dbSuccess || localStorageSuccess;
 };
 
 /**
- * Gets search history from localStorage
+ * Gets search history from localStorage (internal helper)
  * @returns {Array<Object>} Array of search history entries
  */
-export const getSearchHistory = () => {
+const getSearchHistoryLocal = () => {
   if (!isLocalStorageAvailable()) {
     return [];
   }
@@ -123,7 +174,7 @@ export const getSearchHistory = () => {
     // Filter out invalid entries and return valid ones
     return parsed.filter(isValidHistoryEntry);
   } catch (error) {
-    console.error('Failed to get search history:', error);
+    console.error('Failed to get search history from localStorage:', error);
     // If JSON is corrupted, remove it
     try {
       localStorage.removeItem(SEARCH_HISTORY_KEY);
@@ -135,14 +186,62 @@ export const getSearchHistory = () => {
 };
 
 /**
- * Clears search history
+ * Gets search history (dual-read pattern: API first, localStorage fallback)
+ * @returns {Promise<Array<Object>>} Array of search history entries
  */
-export const clearSearchHistory = () => {
+export const getSearchHistory = async () => {
+  try {
+    // Try to get from database first
+    const dbHistory = await searchHistoryService.getSearchHistory({ limit: MAX_HISTORY_ITEMS });
+    // If we successfully got a response (even if empty), return it
+    // This ensures authenticated users see database results (even if empty)
+    // rather than localStorage fallback
+    if (Array.isArray(dbHistory)) {
+      return dbHistory;
+    }
+  } catch (error) {
+    // If API fails (unauthorized, network error, etc.), fallback to localStorage
+    if (error.message.includes('Unauthorized') || error.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue to localStorage
+    } else {
+      console.warn('Failed to fetch search history from database, using localStorage:', error);
+    }
+  }
+
+  // Fallback to localStorage
+  return getSearchHistoryLocal();
+};
+
+/**
+ * Clears search history (dual-write pattern: clears both database and localStorage)
+ * @returns {Promise<boolean>} True if cleared successfully (at least localStorage)
+ */
+export const clearSearchHistory = async () => {
+  let dbSuccess = false;
+  let localStorageSuccess = false;
+
+  // 1. Try to clear database
+  try {
+    await searchHistoryService.clearSearchHistory();
+    dbSuccess = true;
+  } catch (dbError) {
+    // Continue to localStorage clear
+    if (dbError.message.includes('Unauthorized') || dbError.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue silently
+    } else {
+      console.warn('Failed to clear search history from database:', dbError);
+    }
+  }
+
+  // 2. Always clear localStorage during dual-write period
   try {
     localStorage.removeItem(SEARCH_HISTORY_KEY);
+    localStorageSuccess = true;
   } catch (error) {
-    console.error('Failed to clear search history:', error);
+    console.error('Failed to clear search history from localStorage:', error);
   }
+
+  return dbSuccess || localStorageSuccess;
 };
 
 /**

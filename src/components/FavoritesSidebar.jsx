@@ -6,27 +6,44 @@ import { formatHistoryTimestamp } from '../utils/searchHistory';
 const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
   const [favorites, setFavorites] = useState([]);
 
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
-    if (isOpen) {
-      loadFavorites();
-    }
+    if (!isOpen) return;
+    
+    let cancelled = false;
+    
+    const loadFavorites = async () => {
+      setIsLoading(true);
+      try {
+        const favs = await getFavorites();
+        if (!cancelled) {
+          setFavorites(favs);
+        }
+      } catch (error) {
+        console.error('Failed to load favorites:', error);
+        if (!cancelled) {
+          setFavorites([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadFavorites();
+    
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
-  const loadFavorites = () => {
-    try {
-      const favs = getFavorites();
-      setFavorites(favs);
-    } catch (error) {
-      console.error('Failed to load favorites:', error);
-      setFavorites([]);
-    }
-  };
-
-  const handleDelete = (e, favoriteId) => {
+  const handleDelete = async (e, favoriteId) => {
     e.stopPropagation();
     try {
-      deleteFavorite(favoriteId);
-      loadFavorites();
+      await deleteFavorite(favoriteId);
+      await loadFavorites(); // Reload after deletion
     } catch (error) {
       console.error('Failed to delete favorite:', error);
     }
@@ -74,7 +91,14 @@ const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {favorites.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 text-zinc-500">
+              <div className="w-12 h-12 mx-auto mb-4 opacity-20 animate-spin">
+                <Star className="w-12 h-12" />
+              </div>
+              <p className="text-sm">Loading favorites...</p>
+            </div>
+          ) : favorites.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
               <Star className="w-12 h-12 mx-auto mb-4 opacity-20" />
               <p className="text-sm">No favorites yet</p>

@@ -599,7 +599,7 @@ If you encounter an issue not covered here:
    - Check Node.js version (v18+ required)
 
 4. **Review Documentation:**
-   - [README.md](./README.md) - Setup and configuration
+   - [README.md](../README.md) - Setup and configuration
    - [CONTEXT.md](./CONTEXT.md) - Project history and decisions
    - [CHANGELOG.md](./CHANGELOG.md) - Recent changes
 

@@ -139,7 +139,7 @@ This dynamic route handles all authentication endpoints:
 - Session secret stored in `NEXTAUTH_SECRET` environment variable
 
 **Prisma Client Singleton:**
-Created `lib/prisma.js` to prevent multiple Prisma Client instances during Next.js hot reload:
+Created `src/lib/prisma.js` to prevent multiple Prisma Client instances during Next.js hot reload:
 - Uses `globalThis` to store singleton in development
 - Prevents connection pool exhaustion
 - Includes logging in development mode
@@ -223,6 +223,15 @@ Created `lib/prisma.js` to prevent multiple Prisma Client instances during Next.
 ## Current Status
 
 ✅ **Completed:**
+
+**Phase 1: Schema Updates (v4.2.0) - ✅ COMPLETE:**
+- Database schema expanded with Favorite and TranscriptionQueue models
+- SearchHistory model expanded with individual fields for all search parameters
+- All indexes and constraints created for optimal performance
+- Migration applied: `20251120023547_add_favorites_and_transcription_queue_expand_search_history`
+- Prisma Client regenerated successfully
+
+**Phase 2 Foundation:**
 - Database schema defined and migrated
 - Prisma Client configured and generated
 - NextAuth.js v5 beta integrated with Prisma adapter
@@ -233,17 +242,37 @@ Created `lib/prisma.js` to prevent multiple Prisma Client instances during Next.
 - Security verification completed (all keys server-side only)
 
 🔄 **In Progress:**
-- Migration of `localStorage` utilities to API routes (next priority)
+- Phase 2: Collections API routes implementation (next priority)
+- Migration of `localStorage` utilities to API routes
 
 📋 **Remaining Tasks:**
-1. Create API routes for Collections CRUD operations
-2. Create API routes for SearchHistory operations
-3. Create API routes for TranscriptionQueue management
-4. Create API routes for Favorites management
-5. Update frontend components to use API routes instead of localStorage
-6. Add user-scoped queries (filter by `userId` from session)
-7. Integrate transcription service (e.g., Whisper API)
-8. Add transcript storage model to database schema
+
+**Phase 2: Collections API Routes (High Priority):**
+1. Create API routes for Collections CRUD operations (`/api/collections`)
+2. Implement video upsert logic (always upsert based on videoId)
+3. Update frontend components to use API routes
+4. Implement dual-write pattern during migration
+
+**Phase 3: Search History API Routes (Medium Priority):**
+5. Create API routes for SearchHistory operations (`/api/search-history`)
+6. Update `searchHistory.js` utility to call API routes
+7. Update frontend components
+
+**Phase 4: Favorites API Routes (Medium Priority):**
+8. Create API routes for Favorites management (`/api/favorites`)
+9. Update `favorites.js` utility to call API routes
+10. Update frontend components
+
+**Phase 5: Transcription Queue API Routes (Lower Priority):**
+11. Create API routes for TranscriptionQueue management (`/api/transcription-queue`)
+12. Update `transcriptionQueue.js` utility to call API routes
+13. Update frontend components
+
+**Future Enhancements:**
+14. Add rate limiting to API routes
+15. Integrate transcription service (e.g., Whisper API)
+16. Add transcript storage model to database schema
+17. Implement batch operations for collections (optimization)
 
 ## Architecture Benefits
 
@@ -282,7 +311,7 @@ Created `lib/prisma.js` to prevent multiple Prisma Client instances during Next.
 ## Key Files Reference
 
 - **Database Schema**: `prisma/schema.prisma`
-- **Prisma Client**: `lib/prisma.js`
+- **Prisma Client**: `src/lib/prisma.js`
 - **Auth API Route**: `app/api/auth/[...nextauth]/route.js`
 - **Session Provider**: `src/components/Providers.jsx`
 - **Auth UI**: `src/components/Header.jsx` (AuthButton component)

@@ -5,6 +5,234 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.2] - 2025-11-20
+
+### Changed
+
+- **Project Organization:**
+  - Created a new `docs/` directory and moved all Markdown documentation files (`CHANGELOG.md`, `CONTEXT.md`, `MIGRATION_PLAN.md`, `TESTING_COLLECTIONS.md`, `SEARCH_HISTORY_IMPLEMENTATION_SUMMARY.md`, `TESTING_PHASE3_PHASE4.md`, `COLLECTIONS_IMPLEMENTATION_SUMMARY.md`) into it.
+  - Created a new `tests/` directory in the project root.
+  - Moved all test files from `src/utils/__tests__` and `src/hooks/__tests__` into the new `tests/` directory, maintaining their relative structure.
+  - Updated `package.json` test scripts to point to the new `tests/` directory.
+  - Updated `README.md` and `CONTEXT.md` to reflect the new project structure.
+  - Added `src/generated/` to `.gitignore` so regenerated Prisma client artifacts are not committed.
+  - Consolidated Prisma client helper to `src/lib/prisma.js` and removed the legacy root-level copy to avoid confusion about the canonical import path.
+
+## [4.5.1] - 2025-01-XX
+
+### Fixed
+
+- **Search History & Favorites Bug Fixes:**
+  - Fixed empty array handling in `getSearchHistory()` - now properly returns database results even if empty (for authenticated users)
+  - Fixed race conditions in `SearchHistory.jsx` - added cleanup function to prevent state updates after component unmount
+  - Fixed race conditions in `FavoritesSidebar.jsx` - added cleanup function to prevent state updates after component unmount
+  - Improved error handling consistency across all dual-write operations
+
+### Added
+
+- **Testing Documentation:**
+  - Created comprehensive testing guide (`TESTING_PHASE3_PHASE4.md`) with 17 test scenarios covering authenticated/unauthenticated flows, dual-write patterns, error handling, edge cases, and performance
+
+## [4.5.0] - 2025-01-XX
+
+### Added
+
+- **Favorites API Routes & Frontend Integration (Phase 4 Complete):**
+  - Created `favoritesService.js` API client with full CRUD operations
+  - Implemented dual-write pattern (database + localStorage) for seamless migration
+  - Added API routes: `GET /api/favorites`, `POST /api/favorites`, `DELETE /api/favorites`, `GET /api/favorites/[id]`, `PUT /api/favorites/[id]`, `DELETE /api/favorites/[id]`, `GET /api/favorites/check`
+  - Added duplicate detection (prevents duplicate favorites by name+type)
+  - Updated `FavoritesSidebar.jsx` component with async API integration and loading states
+  - Updated `EnhancedSearchBar.jsx` to use async favorites API
+  - Updated `SearchStats.jsx` to use async favorites API with proper cleanup
+
+- **Documentation:**
+  - Created implementation summary (`FAVORITES_IMPLEMENTATION_SUMMARY.md`)
+
+### Changed
+
+- **Favorites Utility (`favorites.js`):**
+  - Updated all functions to be async (maintains same signature)
+  - Implemented dual-write pattern (database + localStorage)
+  - Updated `getFavorites()` to read from database first, fallback to localStorage
+  - Updated `saveFavorite()` to write to both database and localStorage
+  - Updated `deleteFavorite()` to delete from both database and localStorage
+  - Updated `isFavorited()` to check database first, fallback to localStorage
+  - Updated `getFavorite()` to get from database first, fallback to localStorage
+  - Handles both database IDs (cuid) and localStorage IDs
+
+- **FavoritesSidebar Component:**
+  - Updated to use async `getFavorites()` API
+  - Added loading state with spinner
+  - Updated delete operation to be async
+  - Reloads favorites after deletion
+
+- **EnhancedSearchBar Component:**
+  - Updated `handleSaveFavorite` to be async
+  - Uses async `isFavorited()` check
+  - Uses async `saveFavorite()`
+
+- **SearchStats Component:**
+  - Updated `useEffect` to check favorites asynchronously
+  - Updated `handleToggleFavorite` to be async
+  - Uses async favorites API functions
+  - Added proper cleanup in useEffect to prevent race conditions
+
+### Technical Details
+
+- **Dual-Write Pattern:** Favorites are saved to both database (if authenticated) and localStorage during migration period
+- **Duplicate Detection:** Prevents duplicate favorites by name+type for same user (updates existing instead)
+- **ID Format Handling:** Handles both database IDs (cuid format) and localStorage IDs (favorite_ prefix)
+- **Async Operations:** All favorites operations are now async to support API integration
+- **Backward Compatibility:** Maintains same function signatures (now async)
+
+### Testing Status
+
+⏳ **Manual testing in progress** - See `FAVORITES_IMPLEMENTATION_SUMMARY.md` for scenarios
+
+## [4.4.0] - 2025-01-XX
+
+### Added
+
+- **Search History API Routes & Frontend Integration (Phase 3 Complete):**
+  - Created `searchHistoryService.js` API client with full CRUD operations
+  - Implemented dual-write pattern (database + localStorage) for seamless migration
+  - Added API routes: `GET /api/search-history`, `POST /api/search-history`, `DELETE /api/search-history`, `DELETE /api/search-history/[id]`
+  - Enhanced search history to save all search parameters (query, channelName, dates, filters, etc.)
+  - Added duplicate detection (prevents saving same search within 1 minute)
+  - Automatic cleanup (keeps only last 50 entries per user in database)
+  - Updated `SearchHistory.jsx` component with async API integration and loading states
+  - Enhanced history display to show all search parameters (channel, filters, etc.)
+
+- **Documentation:**
+  - Created implementation summary (`SEARCH_HISTORY_IMPLEMENTATION_SUMMARY.md`)
+
+### Changed
+
+- **Search History Utility (`searchHistory.js`):**
+  - Updated `saveSearchHistory()` to accept full search parameters object
+  - Maintained backward compatibility with old API (`saveSearchHistory(query, startDate, endDate)`)
+  - Implemented dual-write pattern (database + localStorage)
+  - Updated `getSearchHistory()` to read from database first, fallback to localStorage
+  - Updated `clearSearchHistory()` to clear both database and localStorage
+
+- **useVideoSearch Hook:**
+  - Updated to save all search parameters to history (not just query, dates)
+  - Now saves channel-only searches to history
+  - Supports saving searches with all filters (duration, language, order, maxResults)
+
+- **SearchHistory Component:**
+  - Updated to use async `getSearchHistory()` API
+  - Added loading state with spinner
+  - Enhanced display to show all search parameters
+  - Improved entry display (shows channel name, filters, etc.)
+  - Updated clear operation to be async
+
+- **Page Component:**
+  - Updated `handleSelectHistory` to restore all search parameters
+  - Supports full search restoration from history (including filters)
+
+### Technical Details
+
+- **Dual-Write Pattern:** Search history is saved to both database (if authenticated) and localStorage during migration period
+- **Full Parameter Support:** Now saves and restores all search parameters: query, channelName, startDate, endDate, duration, language, order, maxResults
+- **Duplicate Detection:** Prevents saving same search within 1 minute (database) and checks all parameters (localStorage)
+- **Automatic Cleanup:** Database automatically keeps only last 50 entries per user
+- **Backward Compatibility:** Old API format still supported for smooth migration
+
+### Testing Status
+
+✅ **All Search History test scenarios passed (2025-11-20)**  
+See `SEARCH_HISTORY_IMPLEMENTATION_SUMMARY.md` and `TESTING_PHASE3_PHASE4.md` for full coverage.
+
+## [4.3.0] - 2025-01-XX
+
+### Added
+
+- **Collections Frontend Integration (Phase 2 Complete):**
+  - Created `collectionsService.js` API client with full CRUD operations
+  - Implemented dual-write pattern (database + localStorage) for seamless migration
+  - Added authentication integration with NextAuth.js session management
+  - Enhanced `CollectionModal.jsx` with API integration and error handling
+  - Comprehensive error handling with user-friendly toast notifications
+  - Loading states and disabled button states during operations
+  - Support for both authenticated (database) and unauthenticated (localStorage) users
+
+- **Testing & Documentation:**
+  - Created comprehensive testing guide (`TESTING_COLLECTIONS.md`)
+  - Created implementation summary (`COLLECTIONS_IMPLEMENTATION_SUMMARY.md`)
+  - All test scenarios passed successfully
+
+### Changed
+
+- **CollectionModal Component:**
+  - Updated to use API routes instead of localStorage-only
+  - Added dual-write pattern for gradual migration
+  - Enhanced user feedback with contextual toast messages
+  - Added authentication checks and informational messages
+  - Improved error handling for network failures and session expiration
+
+### Technical Details
+
+- **Dual-Write Pattern:** Collections are saved to both database (if authenticated) and localStorage during migration period
+- **Authentication:** Database operations require authentication; localStorage works for all users
+- **Error Handling:** Graceful degradation - data is never lost even if one storage method fails
+- **User Experience:** Clear messaging about local vs cloud storage, sign-in prompts, and operation status
+
+### Testing Status
+
+✅ **All test scenarios passed:**
+- Authenticated flow (database primary)
+- Unauthenticated flow (localStorage fallback)
+- Dual-write behavior (failure scenarios)
+- Error handling & user feedback
+- Edge cases
+
+## [4.2.0] - 2025-01-XX
+
+### Added
+
+- **Database Schema Expansion (Phase 1 Complete):**
+  - Expanded `SearchHistory` model with individual fields for full search parameters:
+    - `query` (now optional for channel-only searches)
+    - `channelName`, `startDate`, `endDate` (RFC 3339 format)
+    - `duration` ('short', 'medium', 'long')
+    - `language` (language code)
+    - `order` (sort order)
+    - `maxResults`
+  - Created `Favorite` model for user favorites:
+    - Stores search and channel favorites with JSON data field
+    - Type field ('search' or 'channel')
+    - Indexed by userId and type for performance
+  - Created `TranscriptionQueue` model for video transcription queue:
+    - Status tracking ('pending', 'processing', 'completed', 'failed')
+    - Priority system for queue management
+    - Error message storage for failed transcriptions
+    - Unique constraint on [userId, videoId] to prevent duplicates
+  - Added performance indexes:
+    - SearchHistory: `[userId, createdAt]`, `[userId, query]`
+    - Favorite: `[userId, type]`, `[userId, createdAt]`
+    - TranscriptionQueue: `[userId, status]`, `[userId, createdAt]`
+
+- **Migration Documentation:**
+  - Created `MIGRATION_PLAN.md` with comprehensive migration strategy
+  - Documented localStorage to database migration approach
+  - Outlined implementation phases and best practices
+
+### Changed
+
+- **Database Schema:**
+  - Updated `User` model with new relations: `favorites`, `transcriptionQueue`
+  - Updated `Video` model with `transcriptionQueue` relation
+  - `SearchHistory.query` field made optional to support channel-only searches
+
+### Technical Details
+
+- **Migration:** `20251120023547_add_favorites_and_transcription_queue_expand_search_history`
+- **Database:** Neon PostgreSQL (neondb)
+- **Prisma Version:** v6.19.0
+- **Schema Status:** Ready for API route implementation (Phase 2)
+
 ## [4.1.1] - 2025-01-XX
 
 ### Changed
@@ -106,7 +334,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - OAuth providers configured:
     - Google OAuth (requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`)
     - GitHub OAuth (requires `GITHUB_ID` and `GITHUB_SECRET`)
-  - Prisma client singleton created at `lib/prisma.js` for database access
+  - Prisma client singleton created at `src/lib/prisma.js` for database access
 
 - **Authentication UI:**
   - `SessionProvider` added to `src/components/Providers.jsx` to wrap application
