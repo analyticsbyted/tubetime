@@ -5,6 +5,129 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2025-01-XX
+
+### Fixed
+
+- **NextAuth.js v5 Beta Route Handler Compatibility:**
+  - Fixed route handler export pattern to support NextAuth.js v5 beta (`next-auth@5.0.0-beta.30`)
+  - Implemented dynamic handler extraction to support both v4 and v5 beta patterns
+  - Resolved `CLIENT_FETCH_ERROR` and `TypeError` during sign-in attempts
+  - Fixed redirect loop caused by `pages: { signIn: '/' }` configuration
+
+- **OAuth Provider Configuration:**
+  - Fixed GitHub OAuth ID leading space issue (added trimming logic)
+  - Updated provider imports to use default exports (`import Google from "next-auth/providers/google"`)
+  - Removed deprecated `pages` configuration that caused redirect loops
+  - Added direct provider sign-in buttons in Header component
+
+- **Next.js Configuration:**
+  - Removed `experimental.esmExternals` option from `next.config.js` (not recommended)
+  - Fixed webpack configuration warnings
+
+- **Security Verification:**
+  - Verified all API keys are server-side only (never exposed to client)
+  - Confirmed no keys appear in URLs, console logs, or network requests
+  - Documented security best practices
+
+### Changed
+
+- **Header Component:**
+  - Replaced single "Sign In" button with direct provider buttons ("Sign In with Google", "Sign In with GitHub")
+  - Improved user experience by eliminating redirect loop
+  - Better visual feedback during authentication flow
+
+- **Authentication Flow:**
+  - Direct provider sign-in eliminates intermediate redirect page
+  - Improved error handling for authentication failures
+  - Better loading states during OAuth callback
+
+### Technical Details
+
+- **NextAuth.js Version:** Updated to `next-auth@5.0.0-beta.30` with `@auth/prisma-adapter@2.11.1`
+- **Route Handler Pattern:** Supports both NextAuth v4 function pattern and v5 beta object pattern
+- **Security:** All sensitive credentials remain server-side only via `process.env`
+
+### Development Notes
+
+- **Environment Variables:** All OAuth credentials must be properly configured in `.env.local`
+- **GitHub OAuth:** Leading spaces in `GITHUB_ID` are automatically trimmed
+- **Long URLs:** The `callbackUrl` parameter in URLs is safe and normal (contains no sensitive data)
+
+## [4.0.0] - 2025-11-19
+
+### Added
+
+#### Phase 2 Backend Foundation - Database & Authentication
+
+- **Database Schema (Prisma):**
+  - Complete schema definition with all application models
+  - **User Model**: Core user table with NextAuth.js required fields (`id`, `email`, `name`, `emailVerified`, `image`)
+  - **Authentication Models**: `Account`, `Session`, `VerificationToken` tables for NextAuth.js integration
+  - **Application Models**:
+    - `Collection` - User-created video collections/playlists with user association
+    - `Video` - YouTube video metadata storage (id, title, channelTitle, publishedAt, thumbnailUrl)
+    - `VideosInCollections` - Many-to-many join table for videos and collections
+    - `SearchHistory` - User search query history with timestamps
+  - All models properly linked with foreign keys and cascade delete behavior
+  - Database migrations applied successfully to Neon PostgreSQL
+
+- **Authentication Backend (NextAuth.js):**
+  - NextAuth.js v4.24.13 installed and configured
+  - Prisma adapter (`@next-auth/prisma-adapter@1.0.7`) integrated for database-backed sessions
+  - API route created at `/app/api/auth/[...nextauth]/route.js`
+  - OAuth providers configured:
+    - Google OAuth (requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`)
+    - GitHub OAuth (requires `GITHUB_ID` and `GITHUB_SECRET`)
+  - Prisma client singleton created at `lib/prisma.js` for database access
+
+- **Authentication UI:**
+  - `SessionProvider` added to `src/components/Providers.jsx` to wrap application
+  - `AuthButton` component added to `src/components/Header.jsx`
+  - Dynamic "Sign In" / "Sign Out" button with user avatar and name display
+  - Loading state handling for session fetching
+  - Responsive design (hides user name on small screens)
+
+- **Path Alias Configuration:**
+  - Created `jsconfig.json` to configure `@/` path alias pointing to project root
+  - Enables clean imports like `@/lib/prisma` instead of relative paths
+
+### Changed
+
+- **Header Component**: Updated to include authentication UI alongside existing favorites button
+- **Providers Component**: Now includes `SessionProvider` from NextAuth.js for session management
+
+### Technical Details
+
+- **Database**: Neon PostgreSQL (serverless) with Prisma ORM v6.19.0
+- **Authentication**: NextAuth.js v4.24.13 with Prisma adapter for persistent sessions
+- **Schema Location**: `prisma/schema.prisma`
+- **Migrations**: Applied via `npx prisma migrate dev`
+- **Prisma Client**: Generated to `src/generated/prisma` (custom output path)
+- **Prisma Version**: Standardized on v6.19.0 (stable) instead of v7 for reliability
+
+### Development Notes
+
+- **Environment Variables**: Prisma CLI requires `.env` file (not `.env.local`) to read `DATABASE_URL` during migrations. Next.js prioritizes `.env.local` at runtime. Both files can contain the same values, or use `.env` for Prisma-specific variables.
+- **OAuth Setup**: OAuth credentials must be configured in Google Cloud Console and GitHub Developer Settings with proper redirect URIs for local development.
+
+### Environment Variables Required
+
+- `DATABASE_URL` - Neon PostgreSQL connection string
+- `NEXTAUTH_SECRET` - Secret key for signing tokens (generate with `openssl rand -base64 32`)
+- `NEXTAUTH_URL` - Canonical URL (e.g., `http://localhost:3000` for development)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GITHUB_ID` - GitHub OAuth app client ID
+- `GITHUB_SECRET` - GitHub OAuth app client secret
+
+### Migration Notes
+
+- Database migrations must be run: `npx prisma migrate dev`
+- Prisma client must be generated: `npx prisma generate` (usually automatic)
+- OAuth provider credentials must be configured in `.env.local`
+- Existing `localStorage` utilities remain functional but will be migrated to API routes in future updates
+
 ## [3.0.0] - 2025-01-XX
 
 ### Changed (Breaking)

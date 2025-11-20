@@ -9,6 +9,10 @@ The project began with a clear vision from the user: a React application called 
 **Phase 1 (Current):** A historical YouTube search engine.
 -   **Functionality:** Allows users to search for YouTube videos by query and date range, then curate a list of videos from the results.
 -   **Tech Stack:** Next.js 16 (App Router), React 19, Tailwind CSS, Lucide React.
+
+**Phase 2 (In Progress):** Backend integration with persistent database and user authentication.
+-   **Functionality:** User accounts, persistent collections, search history, and future video transcriptions.
+-   **Backend Stack:** Neon (Serverless PostgreSQL), Prisma v6.19.0, NextAuth.js v4.24.13.
 -   **Key Features:**
     -   Search bar with query, start date, and end date.
     -   A responsive grid of video cards, each with a selection checkbox.
@@ -29,6 +33,11 @@ The project began with a clear vision from the user: a React application called 
 -   **Next.js App Router:** Uses `app/page.jsx` as the main entry point, following App Router patterns
 -   **Styling:** Tailwind CSS was chosen for its utility-first approach, which is well-suited for rapid UI development and creating custom designs.
 -   **Mobile-First Design:** A key requirement was that the application should be designed with a mobile-first orientation. This was implemented by using responsive prefixes (`sm:`, `md:`, etc.) in the Tailwind CSS classes.
+
+-   **Backend & Database Stack:** For Phase 2, a composable stack was chosen over an all-in-one platform. The chosen stack consists of:
+    -   **Database:** Neon (Serverless PostgreSQL) for its generous free tier and scalability.
+    -   **ORM:** Prisma for its type-safety and excellent integration with the Next.js ecosystem.
+    -   **Authentication:** NextAuth.js for its flexibility and seamless integration as a free, open-source library.
 
 ## Development History & Challenges
 
@@ -140,9 +149,10 @@ The application is now in a stable, production-ready state with enhanced feature
 ✅ **Favorites System:** Save and manage favorite searches and channels  
 ✅ **Channel Filtering:** Clickable channels in stats, fuzzy matching suggestions  
 ✅ **Sort Functionality:** Client-side sorting with dedicated SortBar component  
-✅ **Transcription Queue:** Implemented queue system with localStorage persistence  
+✅ **Transcription Queue:** Implemented queue system with localStorage persistence
 ✅ **Comprehensive Testing:** Test suite for utility functions (AppContext tests removed after refactoring)
-
+✅ **Database Foundation:** Complete schema with User, Account, Session, Collection, Video, VideosInCollections, and SearchHistory models. Migrations applied successfully.
+✅ **Authentication Foundation:** NextAuth.js fully integrated with Prisma adapter, Google and GitHub OAuth providers, and UI components in Header.
 ### Architectural Refactoring (v3.0.0) - Next.js Best Practices
 
 **Major Refactoring Completed**: The application underwent a comprehensive architectural refactoring to align with Next.js best practices and eliminate the "god object" pattern.
@@ -335,11 +345,101 @@ These are **future considerations** and not immediate requirements. The current 
 
 None currently. The application is ready for Phase 2 development (backend integration with Supabase + Whisper).
 
-### Future Enhancements (Phase 2)
+### Phase 2: Backend Integration (Foundation Complete)
 
-- Backend integration with Supabase for video storage
-- Whisper API integration for transcription
-- Database schema for queued videos
-- User authentication (if needed)
-- Transcription status tracking
-- Download/export functionality for transcripts
+**Status:** ✅ Database schema and authentication backend foundation completed.
+
+The project has entered Phase 2, which involves building out the backend infrastructure to support user accounts, persistent data, and video transcriptions.
+
+**Chosen Tech Stack:**
+-   **Database:** Neon (Serverless PostgreSQL) - Selected for serverless architecture and generous free tier
+-   **ORM:** Prisma v6.19.0 - Standardized on stable v6 for reliability (v7 had initial connection issues)
+-   **Authentication:** NextAuth.js v4.24.13 - Chosen for seamless Next.js integration and Prisma ecosystem compatibility
+
+**Development Process & Challenges:**
+
+During implementation, several technical decisions were made:
+
+1. **Prisma Version Selection**: Initially encountered connection issues with Prisma v7's new configuration requirements. Standardized on Prisma v6.19.0 for stability and reliability, ensuring consistent behavior across development and production environments.
+
+2. **Environment Variable Configuration**: Discovered that Prisma CLI requires environment variables to be in `.env` (not `.env.local`) to properly read `DATABASE_URL` during migrations. Next.js automatically prioritizes `.env.local` at runtime, but Prisma's CLI tools read from `.env` directly. This was resolved by ensuring both files exist or using `.env` for Prisma-specific variables.
+
+3. **OAuth Provider Setup**: Configured Google and GitHub OAuth providers with proper redirect URIs:
+   - Google: `http://localhost:3000/api/auth/callback/google`
+   - GitHub: `http://localhost:3000/api/auth/callback/github`
+   Both providers require credentials to be created in their respective developer consoles.
+
+**Completed Foundation (v4.0.0):**
+
+1. **Database Schema:**
+   - ✅ **User Model**: Core user table with NextAuth.js required fields (`id`, `email`, `name`, `emailVerified`, `image`)
+   - ✅ **Authentication Models**: `Account`, `Session`, `VerificationToken` tables for NextAuth.js
+   - ✅ **Application Models**: 
+     - `Collection` - User-created video collections/playlists
+     - `Video` - YouTube video metadata (id, title, channelTitle, publishedAt, thumbnailUrl)
+     - `VideosInCollections` - Many-to-many join table linking videos to collections
+     - `SearchHistory` - User search query history
+   - ✅ **Relations**: All models properly linked with foreign keys and cascade deletes
+   - ✅ **Database Migrations**: Two migrations applied successfully:
+     - Initial migration (`20251119223544_init`) - Created User table
+     - App and Auth models (`20251119230535_add_app_and_auth_models`) - Added all authentication and application tables
+
+2. **Authentication Backend:**
+   - ✅ **NextAuth.js Installation**: Installed `next-auth@4.24.13` and `@next-auth/prisma-adapter@1.0.7`
+   - ✅ **API Route**: Created `/app/api/auth/[...nextauth]/route.js` with Prisma adapter
+   - ✅ **OAuth Providers**: Configured Google and GitHub providers (requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_ID`, `GITHUB_SECRET` environment variables)
+   - ✅ **Session Management**: Integrated with Prisma for persistent sessions
+   - ✅ **Prisma Client Setup**: Created `lib/prisma.js` singleton for database access
+   - ✅ **Prisma Version**: Standardized on Prisma v6.19.0 for stability and reliability
+
+3. **Authentication UI:**
+   - ✅ **SessionProvider**: Added to `src/components/Providers.jsx` to wrap application
+   - ✅ **Header Integration**: Updated `src/components/Header.jsx` with `AuthButton` component
+   - ✅ **User Display**: Shows user avatar, name, and "Sign Out" button when authenticated
+   - ✅ **Sign In Button**: Displays "Sign In" button when not authenticated
+   - ✅ **Loading State**: Shows loading skeleton while session is being fetched
+
+**Authentication Troubleshooting & Fixes (v4.1.0):**
+
+During initial authentication setup, several issues were encountered and resolved:
+
+1. **NextAuth.js v5 Beta Compatibility:**
+   - **Issue**: NextAuth.js v5 beta (`5.0.0-beta.30`) uses a different route handler export pattern than v4
+   - **Error**: `CLIENT_FETCH_ERROR` and `TypeError: Function.prototype.apply was called on #<Object>`
+   - **Solution**: Implemented dynamic handler extraction in `app/api/auth/[...nextauth]/route.js` to support both v4 function pattern and v5 beta object pattern
+   - **Code Pattern**: Checks if handler is a function (v4) or object with `handlers.GET/POST` or direct `GET/POST` properties (v5 beta)
+
+2. **OAuth Provider Import Syntax:**
+   - **Issue**: Provider imports were using named exports instead of default exports
+   - **Error**: Provider configuration failures
+   - **Solution**: Changed from `import GoogleProvider from "next-auth/providers/google"` to `import Google from "next-auth/providers/google"` (default export)
+
+3. **Redirect Loop:**
+   - **Issue**: `pages: { signIn: '/' }` configuration caused infinite redirect loop
+   - **Error**: Server logs showed repeated redirects to `/` with nested `callbackUrl` parameters
+   - **Solution**: Removed `pages` configuration and implemented direct provider sign-in buttons in Header component
+
+4. **GitHub OAuth ID Leading Space:**
+   - **Issue**: `GITHUB_ID` environment variable had a leading space, causing authentication failures
+   - **Error**: GitHub sign-in returned 404
+   - **Solution**: Added trimming logic: `const githubId = process.env.GITHUB_ID?.trim() || process.env.GITHUB_ID`
+
+5. **Security Verification:**
+   - **Concern**: User reported seeing long URLs and questioned if API keys were exposed
+   - **Verification**: Confirmed all keys are server-side only (`process.env`), never sent to client, never in URLs
+   - **Long URLs**: Explained that `callbackUrl` parameter is safe and normal (contains no sensitive data)
+   - **Documentation**: Added security verification section to documentation
+
+6. **Next.js Configuration Cleanup:**
+   - **Issue**: `experimental.esmExternals` option was causing warnings
+   - **Solution**: Removed deprecated option from `next.config.js`
+
+**Remaining Phase 2 Tasks:**
+-   Replace all `localStorage` utility functions with API routes that perform database operations via Prisma:
+    - `collections.js` → API routes for Collection CRUD operations
+    - `searchHistory.js` → API routes for SearchHistory operations
+    - `transcriptionQueue.js` → API routes for transcription queue management
+    - `favorites.js` → API routes for favorites management
+-   Integrate a transcription service (e.g., Whisper API) and cache results in the database
+-   Implement row-level security to ensure users can only access their own data
+-   Add user-scoped queries to all API routes (filter by `userId` from session)

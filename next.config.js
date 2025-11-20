@@ -14,10 +14,7 @@ const nextConfig = {
     }
     return config;
   },
-  // Enable experimental features if needed
-  experimental: {
-    // Add any experimental features here
-  },
+  // Experimental features removed - esmExternals is not recommended
 };
 
 export default nextConfig;

@@ -1,14 +1,15 @@
 'use client';
 
+import { SessionProvider } from 'next-auth/react';
+
 /**
- * Client-side providers wrapper
- * Currently no providers needed as we've moved to URL-based state
- * and component-level state management
- * 
- * This component exists to maintain the pattern and allow
- * the root layout to remain a Server Component
+ * Client-side providers wrapper.
+ * This component wraps the application with all necessary client-side context providers.
  */
 export default function Providers({ children }) {
-  return <>{children}</>;
+  return (
+    <SessionProvider>
+      {children}
+    </SessionProvider>
+  );
 }
-

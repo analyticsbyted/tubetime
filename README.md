@@ -1,275 +1,234 @@
 # TubeTime
 
-TubeTime is a historical YouTube search engine that allows users to curate a list of videos for a future video transcription pipeline.
+TubeTime is a historical YouTube search engine that allows users to search, curate, and analyze videos. It features an advanced search interface, data analysis, and a persistent backend for storing user data, collections, and future video transcripts.
 
-## Phase 1: Historical Search Engine
-
-This initial phase focuses on providing a user interface for searching YouTube videos within a specific date range and selecting videos from the search results.
-
-### Features
+## Features
 
 #### Search & Discovery
--   **Advanced Search Interface:** Search for YouTube videos by query, start date, and optional end date (RFC 3339 format)
--   **Search History:** Save and quickly re-run recent searches with timestamps
--   **Date Range Presets:** Quick filters for "Last 24 Hours", "Last 7 Days", "Last 30 Days", "This Month", "Last Year" (defaults to Last 7 Days)
--   **Advanced Filters:**
-  - Channel name filtering with fuzzy matching and suggestions
-  - Duration filter (short/medium/long)
-  - Sort by relevance, date, rating, title, views, or channel (client-side)
-  - Language filter
-  - Results per page selector (10, 20, 50, 100)
--   **Pagination:** Load more results with "Load More" button (supports infinite scroll)
+-   **Advanced Search Interface:** Search by query, date range, channel, duration, and language.
+-   **URL-Based State:** All search parameters are stored in the URL, making searches shareable and bookmarkable.
+-   **Date Range Presets:** Quick filters for "Last 24 Hours", "Last 7 Days", etc.
 
-#### Video Management
--   **Multi-Select:** Select multiple videos from search results using checkboxes
--   **Selection Controls:** Select All / Deselect All buttons with selection counter in header
--   **Collections/Playlists:** Save selected videos as named collections with localStorage persistence
--   **Export Functionality:**
-  - Export to JSON (full video data)
-  - Export to CSV (formatted for spreadsheets)
-  - Export video IDs only
+#### Video Management & Analysis
+-   **Multi-Select:** Select multiple videos for batch operations.
+-   **Collections:** Save selected videos into named collections, persisted in the database.
+-   **Export:** Export video data to JSON or CSV.
+-   **Search Statistics:** Dashboard with total results, channel distribution, and other analytics.
 
-#### Analytics & Insights
--   **Search Statistics Dashboard:** 
-  - Total results count
-  - Unique channels count
-  - Average video duration
-  - Date range visualization
-  - Top channels breakdown
--   **Video Metadata Display:**
-  - View count, like count, comment count
-  - Duration badges
-  - Category tags
+#### User & Data Persistence
+-   **Authentication:** User accounts and session management powered by NextAuth.js.
+-   **Database Backend:** User data, collections, and search history are stored in a PostgreSQL database (Neon) via Prisma.
 
-#### User Experience
--   **Action Bar:** Floating action bar appears when videos are selected
--   **Loading States:** Visual feedback during search operations
--   **Empty States:** Helpful messages when no results are found or before first search
--   **Favorites System:** Save favorite searches and channels for quick access
-    - Sidebar interface for managing favorites
-    - Add channels to favorites directly from search statistics
-    - Re-run favorite searches with one click
--   **Channel Suggestions:** Fuzzy matching suggestions when typing channel names
--   **Sort Options:** Client-side sorting by date, relevance, rating, title, views, or channel
--   **Transcription Queue:** Queue selected videos for transcription
-    - Persistent queue stored in localStorage
-    - Duplicate prevention
-    - Ready for backend integration in Phase 2
+## Tech Stack
 
-### Tech Stack
-
--   **Framework:** Next.js 16 (App Router)
--   **Frontend:** React 19
--   **Styling:** Tailwind CSS v4.1.17
+-   **Framework:** Next.js (App Router)
+-   **Language:** JavaScript (React)
+-   **Database:** PostgreSQL (via [Neon](https://neon.tech/))
+-   **ORM:** [Prisma](https://www.prisma.io/)
+-   **Authentication:** [NextAuth.js](https://next-auth.js.org/)
+-   **Styling:** Tailwind CSS
 -   **Icons:** Lucide React
--   **Notifications:** Sonner (toast notifications)
--   **Build Tool:** Next.js with PostCSS
 
 ## Getting Started
 
 ### Prerequisites
 
 -   Node.js (v18 or later)
--   npm
+-   npm or yarn/pnpm
 
-### Installation
+### 1. Installation
 
-1.  Clone the repository:
+1.  **Clone the repository:**
     ```bash
     git clone <repository-url>
-    ```
-2.  Navigate to the project directory:
-    ```bash
     cd tubetime
     ```
-3.  Install the dependencies:
+2.  **Install dependencies:**
     ```bash
     npm install
     ```
 
-### Configuration
+### 2. Environment Setup
 
-To use the YouTube search functionality, you need a YouTube Data API v3 key.
+The project requires environment variables for database access, authentication, and the YouTube API.
 
-**Environment Variable (Required)**
-1.  Create a `.env.local` file in the root of the project (or use `.env`).
-2.  Add your API key to the `.env.local` file:
+1.  **Create environment files:**
+    
+    **Important:** Prisma CLI reads from `.env` (not `.env.local`), while Next.js prioritizes `.env.local` at runtime. For best compatibility:
+    
+    - Create `.env` for Prisma migrations and CLI tools
+    - Create `.env.local` for Next.js runtime (recommended for local development)
+    
+    You can use the same values in both files, or keep Prisma-specific variables in `.env`:
+    
+    ```bash
+    # Option 1: Use .env for everything (simpler)
+    touch .env
+    
+    # Option 2: Use .env.local for Next.js, .env for Prisma (more secure)
+    touch .env.local
+    touch .env  # Copy DATABASE_URL here for Prisma CLI
     ```
-    YOUTUBE_API_KEY=your_api_key_here
+
+2.  **Fill in your environment file(s):**
+    *   `DATABASE_URL`: Get this from your Neon project dashboard. It's the PostgreSQL connection string.
+    *   `YOUTUBE_API_KEY`: Your Google Cloud YouTube Data API v3 key.
+    *   `NEXTAUTH_SECRET`: A secret key for signing tokens. Generate one by running `openssl rand -base64 32` in your terminal.
+    *   `NEXTAUTH_URL`: The canonical URL of your application. For local development, this is `http://localhost:3000`.
+    *   `GOOGLE_CLIENT_ID`: Your Google OAuth client ID (from Google Cloud Console).
+    *   `GOOGLE_CLIENT_SECRET`: Your Google OAuth client secret.
+    *   `GITHUB_ID`: Your GitHub OAuth app client ID (from GitHub Developer Settings).
+    *   `GITHUB_SECRET`: Your GitHub OAuth app client secret.
+
+    Your `.env` or `.env.local` file should look like this:
+    ```env
+    # Database
+    DATABASE_URL="postgresql://user:REDACTED@host/tubetime?sslmode=require"
+
+    # YouTube API
+    YOUTUBE_API_KEY="your_youtube_api_key"
+
+    # NextAuth.js
+    NEXTAUTH_SECRET="your_generated_secret"
+    NEXTAUTH_URL="http://localhost:3000"
+
+    # OAuth Providers
+    GOOGLE_CLIENT_ID="your_google_client_id"
+    GOOGLE_CLIENT_SECRET="your_google_client_secret"
+    GITHUB_ID="your_github_client_id"
+    GITHUB_SECRET="your_github_client_secret"
     ```
 
-**Note:** The API key is stored server-side only and never exposed to the client for security.
+    **Note:** For OAuth setup:
+    - **Google**: Create credentials at [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI.
+    - **GitHub**: Create an OAuth app at [GitHub Developer Settings](https://github.com/settings/developers). Set the authorization callback URL to `http://localhost:3000/api/auth/callback/github`.
 
-**Getting a YouTube API Key:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the YouTube Data API v3
-4. Create credentials (API Key)
-5. Copy the key and add it to your `.env.local` file
+### 3. Database Migration
 
-### Running the Application
+Once your `DATABASE_URL` is set, you need to apply the database schema to your Neon database.
 
-1.  Start the development server:
+-   Run the Prisma migrate command:
+    ```bash
+    npx prisma migrate dev
+    ```
+    This will create the necessary tables (`User`, `Collection`, etc.) in your database.
+
+### 4. Running the Application
+
+1.  **Start the development server:**
     ```bash
     npm run dev
     ```
-2.  Open your browser and navigate to `http://localhost:3000` (Next.js default port).
+2.  Open your browser and navigate to `http://localhost:3000`.
 
-## Project Structure
+## Prisma Commands
 
-```
-tubetime/
-├── app/                 # Next.js App Router directory
-│   ├── api/            # API routes
-│   │   └── youtube/
-│   │       └── search/
-│   │           └── route.js  # Server-side YouTube search endpoint
-│   ├── layout.jsx      # Root layout component
-│   └── page.jsx        # Main page component
-├── public/              # Static assets
-├── src/
-│   ├── components/      # React components
-│   │   ├── ActionBar.jsx         # Floating action bar with export and collection save
-│   │   ├── ChannelSuggestions.jsx # Channel name suggestions with fuzzy matching
-│   │   ├── CollectionModal.jsx   # Modal for saving video collections
-│   │   ├── EnhancedSearchBar.jsx # Advanced search with filters and presets
-│   │   ├── FavoritesSidebar.jsx  # Sidebar for managing favorite searches and channels
-│   │   ├── Footer.jsx            # Footer component with copyright notice
-│   │   ├── SearchHistory.jsx     # Search history modal component
-│   │   ├── SearchStats.jsx       # Search statistics dashboard with clickable channels
-│   │   ├── SortBar.jsx           # Sort options for search results
-│   │   ├── VideoCard.jsx         # Individual video card with metadata
-│   │   └── VideoGrid.jsx         # Grid layout with selection controls
-│   ├── context/
-│   │   └── AppContext.jsx        # React Context for global state management
-│   ├── hooks/
-│   │   └── useSelection.js       # Custom hook for multi-select functionality
-│   ├── services/
-│   │   └── youtubeService.js     # Client-side YouTube API service (calls Next.js API routes)
-│   ├── utils/
-│   │   ├── channelMatcher.js    # Fuzzy matching utilities for channel names
-│   │   ├── collections.js        # Collection/playlist management utilities
-│   │   ├── datePresets.js        # Date range preset utilities
-│   │   ├── export.js             # Export functionality (JSON/CSV)
-│   │   ├── favorites.js          # Favorites management utilities
-│   │   ├── searchHistory.js      # Search history localStorage utilities
-│   │   └── transcriptionQueue.js # Transcription queue management utilities
-│   └── tests/
-│       └── setup.js              # Test configuration
-│   ├── App.jsx          # Main application component
-│   └── index.css        # Global styles and Tailwind CSS import
-├── .env.local           # Environment variables (not in git) - use .env.local or .env
-├── .gitignore          # Git ignore rules
-├── next.config.js      # Next.js configuration
-├── package.json        # Dependencies and scripts
-├── postcss.config.js   # PostCSS configuration (Tailwind CSS v4)
-└── tailwind.config.js  # Tailwind CSS configuration
-```
+Prisma is used to manage your database schema and client.
 
-## Design System
-
-The application uses a **data-heavy aesthetic** inspired by Bloomberg terminals and Linear.app:
-
-- **Color Scheme:** Dark mode with zinc-950 background and red accent colors
-- **Typography:** System fonts for UI, monospace fonts for dates and IDs
-- **Layout:** Constrained to `max-w-7xl` (1280px) for optimal readability
-- **Spacing:** High information density with compact, efficient layouts
-- **Interactions:** Smooth transitions, hover effects, and visual feedback
-
-## Development
-
-### Available Scripts
-
-- `npm run dev` - Start Next.js development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint (Next.js)
-- `npm run test` - Run tests with Vitest
-- `npm run test:ui` - Run tests with UI interface
-
-### Testing
-
-The project includes comprehensive test coverage:
-
-- **AppContext Tests**: Core application logic (search, sorting, selection, queue management)
-- **Utility Tests**: Date presets, search history, transcription queue
-- **API Route Tests**: Backend API endpoint tests (validation, error handling, success cases)
-- **Hook Tests**: useSelection hook functionality
-
-Run tests with:
-```bash
-npm run test        # Run tests once
-npm run test:ui     # Run tests with interactive UI
-```
-
-### Tailwind CSS v4 Setup
-
-This project uses **Tailwind CSS v4** with Next.js, which requires:
-
-1. **PostCSS Configuration:** Uses `@tailwindcss/postcss` plugin (works with Next.js)
-2. **CSS Import:** Uses `@import "tailwindcss"` syntax in `src/index.css`
-3. **Content Paths:** Configured in `tailwind.config.js` to scan all JS/JSX/TS/TSX files in `app/` and `src/` directories
-
-### Key Architectural Decisions
-
-- **Framework:** Next.js App Router for server-side rendering and API routes
-- **State Management:** React Context (`AppContext`) for global state, custom `useSelection` hook for multi-select
-- **API Security:** YouTube API key stored server-side, never exposed to client
-- **API Abstraction:** Client-side `youtubeService.js` calls Next.js API routes (`/api/youtube/search`)
-- **Component Structure:** Separation of concerns with dedicated components for each UI element
-- **Responsive Design:** Mobile-first approach with Tailwind responsive utilities
-- **Data Persistence:** localStorage for search history, collections, favorites, and user preferences
-- **Utility Modules:** Separate utility files for date presets, export, collections, search history, favorites, and channel matching
-- **Client-Side Filtering:** Channel name filtering and sorting performed client-side for flexibility
-- **Fuzzy Matching:** Levenshtein distance algorithm for channel name suggestions
-- **Testing:** Vitest for unit testing hooks, utilities, and API routes
-- **Server Components:** Root layout is a Server Component for optimal performance
-- **UI Streaming:** React Suspense boundaries for progressive rendering
+-   `npx prisma migrate dev`: Apply schema changes to the database during development.
+-   `npx prisma generate`: Manually re-generate the Prisma Client (usually runs automatically).
+-   `npx prisma studio`: Open a web-based GUI to view and edit your database data.
 
 ## Troubleshooting
 
-### Tailwind CSS Not Applying Styles
+### Authentication Issues
 
-If Tailwind CSS classes aren't being applied:
+**Problem: Sign-in button does nothing / Redirect loop**
 
-1. **Verify Tailwind CSS v4 Setup:**
-   - Check that `src/index.css` uses `@import "tailwindcss";` (not the old `@tailwind` directives)
-   - Ensure `postcss.config.js` uses `@tailwindcss/postcss` plugin
-   - Verify `tailwind.config.js` has correct content paths
+- **Cause**: NextAuth.js configuration issue or missing environment variables
+- **Solution**: 
+  - Verify all OAuth credentials are set in `.env.local`
+  - Check that `NEXTAUTH_SECRET` and `NEXTAUTH_URL` are configured
+  - Ensure OAuth redirect URIs match exactly in provider settings
+  - Clear `.next` cache: `rm -rf .next` and restart server
 
-2. **Restart Dev Server:**
-   ```bash
-   # Stop the server (Ctrl+C) and restart
-   npm run dev
-   ```
+**Problem: GitHub sign-in returns 404**
 
-3. **Clear Cache:**
-   ```bash
-   # Delete node_modules and reinstall
-   rm -rf node_modules package-lock.json
-   npm install
-   ```
+- **Cause**: Leading space in `GITHUB_ID` environment variable
+- **Solution**: Remove leading/trailing spaces from `GITHUB_ID` in `.env.local` (code automatically trims, but best practice is to fix the source)
 
-### YouTube API Errors
+**Problem: Google sign-in shows server error**
 
-- **500 Server Error:** Check that `YOUTUBE_API_KEY` is set in `.env.local`
-- **403 Forbidden:** API key is invalid or quota exceeded
-- **400 Bad Request:** Check date format (must be RFC 3339)
-- **Network Error:** Check internet connection and API key validity
+- **Cause**: Incorrect OAuth credentials or redirect URI mismatch
+- **Solution**: 
+  - Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct
+  - Ensure redirect URI `http://localhost:3000/api/auth/callback/google` is added in Google Cloud Console
+
+### API Key Issues
+
+**Problem: "YouTube API key is not configured"**
+
+- **Cause**: `YOUTUBE_API_KEY` missing from `.env.local`
+- **Solution**: Add `YOUTUBE_API_KEY="your_key_here"` to `.env.local` and restart the server
+
+**Problem: API key appears in browser / URLs**
+
+- **Cause**: This should never happen - keys are server-side only
+- **Verification**: 
+  - Check browser DevTools → Network tab - keys should NOT appear in requests
+  - Check browser URL - keys should NOT be in query parameters
+  - Long URLs with `callbackUrl` are safe (they contain no keys)
+
+### Database Issues
+
+**Problem: Prisma can't find `DATABASE_URL`**
+
+- **Cause**: Prisma CLI reads from `.env` (not `.env.local`)
+- **Solution**: Ensure `DATABASE_URL` exists in `.env` file (can be same value as `.env.local`)
+
+**Problem: Database connection fails**
+
+- **Cause**: Missing `?sslmode=require` in connection string or incorrect credentials
+- **Solution**: Verify `DATABASE_URL` includes `?sslmode=require` at the end (required for Neon)
 
 ### Build Issues
 
-If the build fails:
+**Problem: `Module not found: Can't resolve '@/lib/prisma'`**
 
-1. Check Node.js version (requires v18+)
-2. Clear `node_modules` and reinstall dependencies
-3. Verify all environment variables are set correctly
-4. Check browser console for runtime errors
+- **Cause**: Missing `jsconfig.json` or incorrect path alias configuration
+- **Solution**: Ensure `jsconfig.json` exists in project root with `@/*` pointing to root directory
 
-### Native Module Compatibility
+**Problem: PostCSS configuration errors**
 
-This project uses **webpack** instead of Turbopack (Next.js 16 default) due to native module compatibility requirements:
-- `lightningcss` (Tailwind CSS v4 dependency) requires native bindings
-- Webpack handles dynamic requires for native modules better than Turbopack
-- PostCSS config uses `.cjs` format for webpack compatibility
-- All build scripts include `--webpack` flag by default
+- **Cause**: PostCSS plugins must be specified as strings in Next.js webpack mode
+- **Solution**: Ensure `postcss.config.cjs` uses object syntax with string plugin names
+
+### General Issues
+
+**Problem: Long URLs with nested `callbackUrl` parameters**
+
+- **Cause**: This is normal NextAuth.js behavior (redirect tracking)
+- **Solution**: No action needed - these URLs are safe and contain no sensitive data
+
+**Problem: CSS warnings in browser console**
+
+- **Cause**: Tailwind CSS v4 generates some browser-specific CSS that triggers warnings
+- **Solution**: These warnings are harmless and can be ignored
+
+For more detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+
+## Project Structure
+
+The project follows Next.js App Router conventions.
+
+```
+tubetime/
+├── app/
+│   ├── api/
+│   │   ├── auth/[...nextauth]/  # NextAuth.js dynamic route
+│   │   └── youtube/search/      # Server-side YouTube search
+│   └── page.jsx                 # Main page component
+├── prisma/
+│   └── schema.prisma            # Prisma schema definition
+├── public/
+├── src/
+│   ├── components/
+│   ├── hooks/                   # Custom React hooks (useVideoSearch, etc.)
+│   └── generated/
+│       └── prisma/              # Generated Prisma client
+├── lib/
+│   └── prisma.js                # Prisma client singleton
+├── jsconfig.json                # Path alias configuration (@/ points to root)
+├── .env.local                   # Environment variables (not committed)
+└── package.json
+```
