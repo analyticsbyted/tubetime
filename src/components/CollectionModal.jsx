@@ -23,7 +23,7 @@ const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
@@ -72,7 +72,7 @@ const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
             <button
               onClick={handleSave}
               disabled={!collectionName.trim()}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-zinc-100 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save Collection
             </button>

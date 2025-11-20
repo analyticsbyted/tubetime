@@ -46,7 +46,7 @@ const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-zinc-950/50 z-40 md:hidden"
           onClick={onClose}
         />
       )}

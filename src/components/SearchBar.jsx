@@ -72,7 +72,7 @@ const SearchBar = ({ onSearch, isLoading }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-[46px] bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-900/20"
+            className="w-full h-[46px] bg-red-600 hover:bg-red-500 text-zinc-100 rounded-xl font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-900/20"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
           </button>

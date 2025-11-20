@@ -91,7 +91,7 @@ const ActionBar = ({ selectedCount, selectedVideos, selectedIds, onQueue, onClea
 
         <button
           onClick={onQueue}
-          className="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-red-900/20"
+          className="bg-red-600 hover:bg-red-500 active:bg-red-700 text-zinc-100 font-semibold py-2 px-4 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-red-900/20"
         >
           <FileText size={16} />
           Queue for Transcription

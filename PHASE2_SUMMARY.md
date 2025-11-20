@@ -153,10 +153,13 @@ Created `lib/prisma.js` to prevent multiple Prisma Client instances during Next.
 
 **UI Components:**
 - `AuthButton` component in Header shows:
-  - "Sign In" button for unauthenticated users
+  - Single "Sign In" button with dropdown menu for unauthenticated users
+  - Dropdown menu displays provider options (Google, GitHub) with icons
+  - Menu closes automatically when provider is selected or clicking outside
   - User avatar, name, and "Sign Out" button for authenticated users
   - Loading skeleton while session is being fetched
 - Responsive design (hides user name on small screens)
+- Follows standard UI pattern: single button → dropdown menu → provider selection
 
 ## Development Challenges & Solutions
 

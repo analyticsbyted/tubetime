@@ -19,7 +19,7 @@ The project began with a clear vision from the user: a React application called 
     -   A floating "Action Bar" that appears when videos are selected.
     -   A "Queue for Transcription" button that simulates the future action by logging video IDs to the console and showing a toast notification.
     -   Robust API key management with support for `.env` files and a fallback settings modal.
--   **Aesthetic:** A "data-heavy" dark mode theme, similar to a Bloomberg terminal or Linear.app.
+-   **Aesthetic:** A "data-heavy" dark mode theme, similar to a Bloomberg terminal or Linear.app. Uses off-white (`zinc-100`) and off-black (`zinc-950`) colors instead of pure white/black for softer contrast. See [UIUX.md](./UIUX.md) for detailed design guidelines.
 
 ## Architectural Decisions
 
@@ -396,7 +396,9 @@ During implementation, several technical decisions were made:
    - ✅ **SessionProvider**: Added to `src/components/Providers.jsx` to wrap application
    - ✅ **Header Integration**: Updated `src/components/Header.jsx` with `AuthButton` component
    - ✅ **User Display**: Shows user avatar, name, and "Sign Out" button when authenticated
-   - ✅ **Sign In Button**: Displays "Sign In" button when not authenticated
+   - ✅ **Sign In Dropdown**: Single "Sign In" button opens dropdown menu with provider options (Google, GitHub)
+   - ✅ **Provider Selection**: Dropdown menu displays provider icons and names for better UX
+   - ✅ **Menu Behavior**: Dropdown closes automatically on selection or outside click
    - ✅ **Loading State**: Shows loading skeleton while session is being fetched
 
 **Authentication Troubleshooting & Fixes (v4.1.0):**
@@ -417,7 +419,7 @@ During initial authentication setup, several issues were encountered and resolve
 3. **Redirect Loop:**
    - **Issue**: `pages: { signIn: '/' }` configuration caused infinite redirect loop
    - **Error**: Server logs showed repeated redirects to `/` with nested `callbackUrl` parameters
-   - **Solution**: Removed `pages` configuration and implemented direct provider sign-in buttons in Header component
+   - **Solution**: Removed `pages` configuration and implemented single "Sign In" button with dropdown menu in Header component
 
 4. **GitHub OAuth ID Leading Space:**
    - **Issue**: `GITHUB_ID` environment variable had a leading space, causing authentication failures

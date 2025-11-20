@@ -46,8 +46,8 @@ const VideoCard = ({ video, isSelected, onToggleSelection }) => {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-          <Youtube className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-300 drop-shadow-lg" />
+        <div className="absolute inset-0 bg-zinc-950/0 group-hover:bg-zinc-950/20 transition-colors flex items-center justify-center">
+          <Youtube className="w-12 h-12 text-zinc-100 opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-300 drop-shadow-lg" />
         </div>
         <div 
           className={`absolute top-2 left-2 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition-all shadow-lg ${
@@ -60,7 +60,7 @@ const VideoCard = ({ video, isSelected, onToggleSelection }) => {
             onToggleSelection(id);
           }}
         >
-          {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
+          {isSelected && <Check size={12} className="text-zinc-100" strokeWidth={3} />}
         </div>
       </div>
       

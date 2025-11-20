@@ -129,6 +129,16 @@ Prisma is used to manage your database schema and client.
 -   `npx prisma generate`: Manually re-generate the Prisma Client (usually runs automatically).
 -   `npx prisma studio`: Open a web-based GUI to view and edit your database data.
 
+## Design System
+
+TubeTime follows a "Data Heavy" dark mode aesthetic. For detailed design guidelines, component patterns, and UI/UX changes, see [UIUX.md](./UIUX.md).
+
+**Key Design Principles:**
+- No pure white or pure black colors (uses off-white `zinc-100` and off-black `zinc-950`)
+- Red accents for primary actions
+- High information density
+- Monospace fonts for dates and IDs
+
 ## Troubleshooting
 
 ### Authentication Issues

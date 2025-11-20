@@ -20,7 +20,7 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-start p-4 pt-20">
+    <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex justify-center items-start p-4 pt-20">
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
         <div className="flex justify-between items-center p-4 border-b border-zinc-800">
           <h3 className="text-lg font-bold flex items-center gap-2">

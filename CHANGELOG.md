@@ -5,6 +5,32 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1] - 2025-01-XX
+
+### Changed
+
+- **Color Consistency:**
+  - Replaced all pure white (`text-white`) with off-white (`text-zinc-100`) throughout the application
+  - Replaced all pure black overlays (`bg-black/*`) with zinc overlays (`bg-zinc-950/*`)
+  - Updated button text colors, icons, and overlay backgrounds for better visual consistency
+  - Improved readability and visual comfort with softer contrast
+
+- **UI/UX Documentation:**
+  - Created `UIUX.md` document to track design decisions and guidelines
+  - Documented color palette, typography, and component patterns
+  - Established design system guidelines for future development
+
+### Files Modified
+
+- `src/components/Header.jsx` - Dropdown menu hover states, YouTube icon
+- `src/components/VideoCard.jsx` - YouTube overlay icon, checkmark icon
+- `src/components/EnhancedSearchBar.jsx` - Search button text
+- `src/components/CollectionModal.jsx` - Save button text, modal overlay
+- `src/components/ActionBar.jsx` - Queue button text
+- `src/components/SearchBar.jsx` - Search button text
+- `src/components/FavoritesSidebar.jsx` - Overlay background
+- `src/components/SearchHistory.jsx` - Overlay background
+
 ## [4.1.0] - 2025-01-XX
 
 ### Fixed
@@ -19,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed GitHub OAuth ID leading space issue (added trimming logic)
   - Updated provider imports to use default exports (`import Google from "next-auth/providers/google"`)
   - Removed deprecated `pages` configuration that caused redirect loops
-  - Added direct provider sign-in buttons in Header component
 
 - **Next.js Configuration:**
   - Removed `experimental.esmExternals` option from `next.config.js` (not recommended)
@@ -33,9 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Header Component:**
-  - Replaced single "Sign In" button with direct provider buttons ("Sign In with Google", "Sign In with GitHub")
-  - Improved user experience by eliminating redirect loop
+  - Replaced direct provider buttons with single "Sign In" button that opens dropdown menu
+  - Improved user experience with standard dropdown menu pattern for provider selection
+  - Added provider icons (Google, GitHub) in dropdown menu
   - Better visual feedback during authentication flow
+  - Menu closes automatically when provider is selected or when clicking outside
 
 - **Authentication Flow:**
   - Direct provider sign-in eliminates intermediate redirect page
