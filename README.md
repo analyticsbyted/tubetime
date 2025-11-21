@@ -19,7 +19,7 @@ TubeTime is a historical YouTube search engine that allows users to search, cura
 #### User & Data Persistence
 -   **Authentication:** User accounts and session management powered by NextAuth.js.
 -   **Database Backend:** User data, collections, search history, favorites, and transcription queue are stored in a PostgreSQL database (Neon) via Prisma.
--   **Migration Status:** All localStorage features migrated to database (v4.6.0). Phases 2-5 complete. See [MIGRATION_PLAN.md](./docs/MIGRATION_PLAN.md) for details.
+-   **Migration Status:** All localStorage features migrated to database. Clean cutover completed (v4.7.0) - database-only operations. Phases 2-5 complete. See [MIGRATION_PLAN.md](./docs/MIGRATION_PLAN.md) for details.
 
 ## Tech Stack
 
@@ -40,9 +40,11 @@ All project documentation now lives under `docs/`. Key references:
 - [CHANGELOG](./docs/CHANGELOG.md)
 - [CONTEXT](./docs/CONTEXT.md)
 - [MIGRATION_PLAN](./docs/MIGRATION_PLAN.md)
+- [SECURITY](./docs/SECURITY.md) - Security considerations and best practices
+- [TROUBLESHOOTING](./docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [Implementation Summaries & Testing Guides](./docs/)
 
-Use these files for architecture history, migration steps, and testing procedures.
+Use these files for architecture history, migration steps, testing procedures, and security guidelines.
 
 ### Prerequisites
 

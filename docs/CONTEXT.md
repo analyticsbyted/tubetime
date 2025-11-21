@@ -130,7 +130,7 @@ The project began with a clear vision from the user: a React application called 
 
 ## Current Status
 
-**Migration Status:** ✅ All localStorage features have been successfully migrated to database-backed API routes (Phases 2-5 complete as of v4.6.0). The application is now in a stable, production-ready state with full database persistence.
+**Migration Status:** ✅ All localStorage features have been successfully migrated to database-backed API routes (Phases 2-5 complete). Clean cutover completed (v4.7.0) - all localStorage code removed. The application is now database-only with authentication required for all persistent data operations.
 
 The application is now in a stable, production-ready state with enhanced features:
 
@@ -142,7 +142,7 @@ The application is now in a stable, production-ready state with enhanced feature
 ✅ **Design:** Matches the reference design with red accents and dark theme  
 ✅ **API Integration:** YouTube API abstraction layer with metadata fetching  
 ✅ **State Management:** Multi-select functionality with select all/deselect all  
-✅ **Data Persistence:** All user data (collections, search history, favorites, transcription queue) persisted in PostgreSQL database with localStorage fallback during migration period  
+✅ **Data Persistence:** All user data (collections, search history, favorites, transcription queue) persisted in PostgreSQL database (database-only, no localStorage fallback)  
 ✅ **Testing:** Test infrastructure in place with sample tests  
 ✅ **Footer:** Copyright footer component implemented  
 ✅ **Search UX:** Optional end date allows searching recent content by default  
@@ -156,7 +156,7 @@ The application is now in a stable, production-ready state with enhanced feature
 ✅ **Database Foundation:** Complete schema with User, Account, Session, Collection, Video, VideosInCollections, SearchHistory, Favorite, and TranscriptionQueue models. All migrations applied successfully.
 ✅ **Authentication Foundation:** NextAuth.js fully integrated with Prisma adapter, Google and GitHub OAuth providers, and UI components in Header.
 ✅ **API Routes:** Complete REST API for Collections (Phase 2), Search History (Phase 3), Favorites (Phase 4), and Transcription Queue (Phase 5). All routes authenticated and user-scoped.
-✅ **Dual-Write Pattern:** All features implement dual-write pattern (database + localStorage) for smooth migration and backward compatibility.
+✅ **Database-Only:** All features use database-only operations. Clean cutover completed (v4.7.0). Authentication required for all persistent data operations.
 ### Architectural Refactoring (v3.0.0) - Next.js Best Practices
 
 **Major Refactoring Completed**: The application underwent a comprehensive architectural refactoring to align with Next.js best practices and eliminate the "god object" pattern.
@@ -582,6 +582,50 @@ During initial authentication setup, several issues were encountered and resolve
 5. **Bug Fixes (v4.5.1):**
    - ✅ Fixed race conditions in `FavoritesSidebar.jsx`
 
+**Security Fix (v4.6.1) - ✅ COMPLETE:**
+
+**Issue:** localStorage is browser-specific, not user-specific. Users on shared browsers could see each other's localStorage data when signed out.
+
+**Fix:**
+- Clear all localStorage data on sign-out (favorites, search history, transcription queue)
+- Don't display localStorage data when unauthenticated (return empty arrays)
+- Only show database data when authenticated (user-scoped and secure)
+
+**Files Modified:**
+- `src/components/Header.jsx` - Clear localStorage on sign-out
+- `src/utils/favorites.js` - Return empty array when unauthenticated
+- `src/utils/searchHistory.js` - Return empty array when unauthenticated
+- `src/utils/transcriptionQueue.js` - Return empty array when unauthenticated
+
+**Documentation:**
+- Created `docs/SECURITY.md` with comprehensive security documentation
+- Updated `docs/TROUBLESHOOTING.md` with security section
+
+**Clean Cutover - localStorage Removal (v4.7.0) - ✅ COMPLETE:**
+
+**Migration Complete:** All localStorage code has been removed. The application now uses database-only operations.
+
+**Changes:**
+- ✅ Removed all localStorage write operations from `favorites.js`
+- ✅ Removed all localStorage write operations from `searchHistory.js`
+- ✅ Removed all localStorage write operations from `transcriptionQueue.js`
+- ✅ Removed all localStorage write operations from `CollectionModal.jsx`
+- ✅ Deleted `src/utils/collections.js` (no longer needed, replaced by `collectionsService.js`)
+- ✅ All operations now require authentication
+- ✅ Simplified codebase - single source of truth (database)
+
+**Benefits:**
+- Simplified codebase (removed ~500+ lines of localStorage code)
+- Single source of truth (database)
+- Better security (all data user-scoped)
+- No localStorage fallback complexity
+- Cleaner error handling
+
+**Breaking Changes:**
+- Unauthenticated users can no longer save favorites, search history, or queue items
+- All persistent data operations require authentication
+- Sign-in prompt shown for unauthenticated users attempting to save data
+
 **Phase 5: Transcription Queue API Routes & Frontend Integration (v4.6.0) - ✅ COMPLETE:**
 
 1. **API Routes:**
@@ -594,7 +638,7 @@ During initial authentication setup, several issues were encountered and resolve
 
 2. **Frontend Integration:**
    - ✅ Created `src/services/transcriptionQueueService.js` API client
-   - ✅ Updated `src/utils/transcriptionQueue.js` with dual-write pattern (all functions now async)
+   - ✅ Updated `src/utils/transcriptionQueue.js` to database-only (all functions now async)
    - ✅ Updated `app/page.jsx` to handle async queue operations
 
 3. **Features:**
@@ -603,12 +647,12 @@ During initial authentication setup, several issues were encountered and resolve
    - ✅ Efficient API responses (returns summary instead of all items for batch operations)
    - ✅ Priority support (higher number = higher priority)
    - ✅ Duplicate detection (prevents adding same video twice)
-   - ✅ Dual-write pattern (database + localStorage)
+   - ✅ Database-only operations (clean cutover completed in v4.7.0)
    - ✅ Video upsert (creates video record if not exists)
 
 4. **Documentation:**
    - ✅ Created `TRANSCRIPTION_QUEUE_IMPLEMENTATION_SUMMARY.md`
-   - ⏳ Testing guide - PENDING
+   - ✅ Created `TESTING_PHASE5.md` comprehensive testing guide
 
 -   **Other localStorage Migrations:**
     - ✅ `searchHistory.js` → API routes for SearchHistory operations (Phase 3 - COMPLETE)
@@ -645,3 +689,16 @@ Key notes:
 - Prisma client artifacts are generated via `npx prisma generate` (default output in `node_modules/@prisma/client`).
 
 This structure should be updated whenever a new top-level concern is introduced (e.g., e2e tests folder or additional documentation sets).
+
+## Tooling & MCP Integrations
+
+- **Browser MCP:** Enabled and shows `Ready (Chrome detected)`. The automation harness launches its own Chromium instance, so it works regardless of which browser a developer uses locally (e.g., Firefox).
+- **AWS Documentation MCP:** Installed with the official search/read tools (`search_documentation`, `read_documentation`) for quick access to authoritative AWS references inside Cursor.
+- **Accessing MCP settings:** macOS menu bar → `Cursor` → `Settings…` → `Model Context Protocol`. From there you can confirm/toggle Browser MCP or add additional servers.
+- **Onboarding reminder:** Keep this note updated so future contributors (and LLM assistants) know which MCP servers are already configured and ready to use.
+
+## Open Topics / Future Work
+1. Phase 6 implementation (Transcription Worker MVP)
+2. Phase 7 planning (Display transcripts UI/UX)
+3. Transcription feature manual testing checklist
+4. Observability & performance monitoring post-clean cutover

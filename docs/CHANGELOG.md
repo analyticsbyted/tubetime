@@ -5,6 +5,46 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.7.0] - 2025-01-XX
+
+### Removed
+
+- **Clean Cutover - localStorage Removal:**
+  - Removed all localStorage read/write operations from `favorites.js`
+  - Removed all localStorage read/write operations from `searchHistory.js`
+  - Removed all localStorage read/write operations from `transcriptionQueue.js`
+  - Removed localStorage fallback from `CollectionModal.jsx`
+  - Deleted `src/utils/collections.js` (replaced by `collectionsService.js`)
+  - **Total:** ~1,100+ lines of localStorage code removed
+
+### Changed
+
+- **Database-Only Operations:**
+  - All persistent data operations now require authentication
+  - All utilities are database-only (no localStorage fallback)
+  - Simplified codebase with single source of truth
+  - Clear error messages guide users to sign in
+
+- **Breaking Changes:**
+  - Unauthenticated users can no longer save favorites, search history, or queue items
+  - All persistent data operations require authentication
+  - Sign-in prompts shown for unauthenticated users attempting to save data
+
+### Added
+
+- **Documentation:**
+  - Created `CLEAN_CUTOVER_SUMMARY.md` documenting the localStorage removal
+  - Updated `MIGRATION_PLAN.md` to reflect clean cutover completion
+  - Updated `CONTEXT.md` to reflect database-only operations
+
+### Benefits
+
+- Simplified codebase (~1,100+ lines removed)
+- Better security (all data user-scoped in database)
+- Improved performance (no localStorage overhead)
+- Single source of truth (database)
+- Cleaner error handling
+
 ## [4.5.4] - 2025-11-20
 
 ### Changed

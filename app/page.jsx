@@ -23,6 +23,32 @@ import { toast } from 'sonner';
 import { getDatePreset } from '../src/utils/datePresets';
 
 function HomePageContent() {
+  // Clean up old localStorage data on mount (one-time migration cleanup)
+  useEffect(() => {
+    // Clear all old localStorage keys from migration period
+    // This reclaims storage space and removes stale data
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const keysToRemove = [
+          'tubetime_favorites',
+          'tubetime_search_history',
+          'tubetime_transcription_queue',
+          'tubetime_collections', // Legacy key (if it exists)
+        ];
+        
+        keysToRemove.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+          } catch (error) {
+            // Silently handle individual key removal errors
+          }
+        });
+      } catch (error) {
+        // Silently handle localStorage cleanup errors
+      }
+    }
+  }, []); // Run once on mount
+
   // URL-based state management
   const { searchParams, updateSearchParams } = useSearchParamsState();
   

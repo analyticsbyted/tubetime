@@ -210,7 +210,7 @@ The `TranscriptionQueue` model includes:
 
 - ⏳ **Automated Tests:** Pending
 - ⏳ **Manual Testing:** Pending
-- ⏳ **Testing Guide:** Pending
+- ✅ **Testing Guide:** Complete (`TESTING_PHASE5.md`)
 
 ## Performance Optimizations
 
@@ -243,7 +243,8 @@ The `TranscriptionQueue` model includes:
 
 - All queue operations are now async
 - Frontend components must handle promises
-- localStorage is maintained as fallback during migration period
+- **Database-only operations** (clean cutover completed in v4.7.0)
 - Database operations require authentication
-- Unauthenticated users continue to use localStorage
+- Unauthenticated users cannot queue videos (authentication required)
+- localStorage code has been removed
 

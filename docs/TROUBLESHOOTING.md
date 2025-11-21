@@ -12,6 +12,9 @@ This guide covers common issues encountered during TubeTime development and depl
   - [Google Sign-In Button Doesn't Update After Successful Authentication](#google-sign-in-button-doesnt-update-after-successful-authentication)
   - [CLIENT_FETCH_ERROR / TypeError During Sign-In](#client_fetch_error--typeerror-during-sign-in)
 - [API Key & Security](#api-key--security)
+- [Security & Privacy](#security--privacy)
+  - [localStorage Data Visible After Sign-Out](#localstorage-data-visible-after-sign-out)
+  - [User Data Isolation](#user-data-isolation)
 - [Database Connection](#database-connection)
 - [Build & Configuration](#build--configuration)
 - [Runtime Errors](#runtime-errors)
@@ -316,6 +319,92 @@ This guide covers common issues encountered during TubeTime development and depl
 - These contain redirect information, not sensitive data
 - Example: `/?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2F...`
 - This is URL-encoded and safe
+
+## Security & Privacy
+
+### localStorage Data Visible After Sign-Out
+
+**Symptoms:**
+- Favorites, search history, or transcription queue visible after signing out
+- Data persists in browser after sign-out
+- Concern about data privacy on shared devices
+
+**Security Issue:**
+localStorage is browser-specific, not user-specific. On shared browsers, users could potentially see each other's localStorage data.
+
+**Solution (v4.6.1):**
+The application now automatically clears all localStorage data on sign-out and prevents displaying localStorage data when unauthenticated.
+
+**Implementation:**
+1. **Automatic Clearing on Sign-Out:**
+   - All localStorage keys are cleared when user signs out:
+     - `tubetime_favorites`
+     - `tubetime_search_history`
+     - `tubetime_transcription_queue`
+
+2. **Unauthenticated Access Prevention:**
+   - When not authenticated, utilities return empty arrays instead of localStorage data
+   - This prevents data leakage even if localStorage wasn't cleared
+
+**Files Modified:**
+- `src/components/Header.jsx` - Clears localStorage on sign-out
+- `src/utils/favorites.js` - Returns empty array when unauthenticated
+- `src/utils/searchHistory.js` - Returns empty array when unauthenticated
+- `src/utils/transcriptionQueue.js` - Returns empty array when unauthenticated
+
+**Verification:**
+1. Sign in and create some favorites/search history
+2. Sign out
+3. Check browser DevTools → Application → Local Storage
+4. Verify all `tubetime_*` keys are removed
+5. Verify favorites sidebar shows empty (no localStorage data displayed)
+
+**Best Practices:**
+- Always sign out on shared devices
+- Use private browsing for sensitive searches
+- Be aware that localStorage is browser-specific
+
+**Note:** For comprehensive security documentation, see [SECURITY.md](./SECURITY.md).
+
+### User Data Isolation
+
+**Question:**
+Can users see each other's data?
+
+**Answer:**
+No. All user data is strictly isolated in the database:
+
+1. **Database Scoping:**
+   - All queries are filtered by `userId`
+   - Users can only access their own data
+   - No cross-user data access is possible
+
+2. **API Authentication:**
+   - All API routes require authentication
+   - User ID is extracted from session
+   - All database operations use user-scoped queries
+
+3. **localStorage Security:**
+   - localStorage is cleared on sign-out
+   - localStorage data is not displayed when unauthenticated
+   - Only database data is shown when authenticated
+
+**Example Query Pattern:**
+```javascript
+// All database queries follow this pattern:
+const items = await prisma.item.findMany({
+  where: { userId }, // Always filtered by user ID
+});
+```
+
+**Verification:**
+- Sign in as User A, create favorites
+- Sign out
+- Sign in as User B
+- User B should only see their own favorites (from database)
+- User A's favorites should not be visible
+
+**Note:** For detailed security implementation, see [SECURITY.md](./SECURITY.md).
 
 ## Database Connection
 

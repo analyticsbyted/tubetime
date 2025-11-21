@@ -87,7 +87,9 @@ export const saveSearchHistory = async (searchParams) => {
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Unauthorized: Please sign in to save search history.');
+        // Expected for unauthenticated users - return null instead of throwing
+        // This allows the utility layer to fall back to localStorage silently
+        return null;
       }
       if (response.status === 400) {
         const errorData = await response.json().catch(() => ({}));

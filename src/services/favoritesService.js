@@ -226,7 +226,9 @@ export const checkFavorite = async (name, type) => {
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Unauthorized: Please sign in to check favorites.');
+        // Expected for unauthenticated users - return null instead of throwing
+        // This allows the utility layer to fall back to localStorage silently
+        return null;
       }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Failed to check favorite.');

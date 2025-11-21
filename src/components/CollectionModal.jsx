@@ -3,7 +3,6 @@ import { Save, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { createCollection, addVideosToCollection } from '../services/collectionsService';
-import { saveCollection } from '../utils/collections';
 
 const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
   const [collectionName, setCollectionName] = useState('');
@@ -22,72 +21,26 @@ const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
     const trimmedName = collectionName.trim();
     const videoIdsArray = Array.from(selectedIds);
 
+    // Require authentication for database-only operations
+    if (!session || status === 'loading') {
+      toast.error('Please sign in to save collections.');
+      setIsSaving(false);
+      return;
+    }
+
     try {
-      // Dual-write pattern: Write to both database and localStorage
-      let dbCollectionId = null;
-      let dbSuccess = false;
-      let localStorageSuccess = false;
-
-      // 1. Try to save to database if authenticated
-      if (session && status !== 'loading') {
-        try {
-          const collection = await createCollection(trimmedName);
-          dbCollectionId = collection.id;
-          
-          // Add videos to collection one by one
-          const addResult = await addVideosToCollection(collection.id, selectedVideos);
-          
-          if (addResult.failed > 0) {
-            toast.warning(
-              `Collection created, but ${addResult.failed} video(s) failed to add. ${addResult.success} video(s) added successfully.`
-            );
-          } else {
-            dbSuccess = true;
-          }
-        } catch (dbError) {
-          console.error('Database save failed:', dbError);
-          // Continue to localStorage fallback
-          if (dbError.message.includes('Unauthorized') || dbError.message.includes('sign in')) {
-            // User session expired, but continue with localStorage
-            toast.info('Session expired. Saving locally. Sign in to sync to cloud.');
-          }
-        }
-      }
-
-      // 2. Always save to localStorage during dual-write period
-      try {
-        const localStorageId = saveCollection(trimmedName, videoIdsArray, selectedVideos);
-        localStorageSuccess = true;
-        
-        // If database save failed, use localStorage ID
-        if (!dbCollectionId) {
-          dbCollectionId = localStorageId;
-        }
-      } catch (localStorageError) {
-        console.error('localStorage save failed:', localStorageError);
-        // If both fail, show error
-        if (!dbSuccess) {
-          throw new Error('Failed to save collection. Please try again.');
-        }
-      }
-
-      // 3. Show appropriate success message
-      if (dbSuccess && localStorageSuccess) {
+      // Database-only: Create collection and add videos
+      const collection = await createCollection(trimmedName);
+      
+      // Add videos to collection
+      const addResult = await addVideosToCollection(collection.id, selectedVideos);
+      
+      if (addResult.failed > 0) {
+        toast.warning(
+          `Collection created, but ${addResult.failed} video(s) failed to add. ${addResult.success} video(s) added successfully.`
+        );
+      } else {
         toast.success(`Collection "${trimmedName}" saved successfully!`);
-      } else if (dbSuccess && !localStorageSuccess) {
-        toast.success(`Collection "${trimmedName}" saved to cloud!`, {
-          description: 'Local save failed, but your collection is safely stored.',
-        });
-      } else if (!dbSuccess && localStorageSuccess) {
-        if (session) {
-          toast.warning(`Collection "${trimmedName}" saved locally.`, {
-            description: 'Cloud save failed, but your collection is saved locally. Please try again later.',
-          });
-        } else {
-          toast.success(`Collection "${trimmedName}" saved locally!`, {
-            description: 'Sign in to sync your collections across devices.',
-          });
-        }
       }
 
       setCollectionName('');
@@ -141,9 +94,9 @@ const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
           </div>
           
           {!session && status !== 'loading' && (
-            <div className="text-xs text-blue-400 bg-blue-400/10 border border-blue-400/20 rounded-lg p-3 mb-4">
-              <p className="font-medium mb-1">💡 Sign in to sync</p>
-              <p className="text-blue-300/80">Your collection will be saved locally. Sign in to sync across devices and access your collections from anywhere.</p>
+            <div className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg p-3 mb-4">
+              <p className="font-medium mb-1">⚠️ Sign in required</p>
+              <p className="text-red-300/80">Please sign in to save collections. Collections are stored securely in your account.</p>
             </div>
           )}
           

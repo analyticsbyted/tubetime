@@ -71,7 +71,11 @@ export function useVideoSearch() {
               maxResults: searchParams.maxResults,
             });
           } catch (error) {
-            console.warn('Failed to save search history:', error);
+            // Silently handle errors - utility layer handles 401s gracefully
+            // Only log unexpected errors that aren't related to authentication
+            if (!error.message?.includes('Unauthorized') && !error.message?.includes('sign in')) {
+              console.warn('Failed to save search history:', error);
+            }
           }
         }
       }

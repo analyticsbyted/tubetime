@@ -55,7 +55,32 @@ function AuthButton() {
           <span className="hidden sm:inline text-zinc-300">{session.user.name}</span>
         </div>
         <button
-          onClick={() => signOut()}
+          onClick={async () => {
+            // Clear all localStorage data on sign out for security
+            // This prevents other users on the same browser from seeing user data
+            // Also clears any legacy keys from migration period
+            try {
+              if (typeof window !== 'undefined' && window.localStorage) {
+                const keysToRemove = [
+                  'tubetime_favorites',
+                  'tubetime_search_history',
+                  'tubetime_transcription_queue',
+                  'tubetime_collections', // Legacy key (if it exists)
+                ];
+                
+                keysToRemove.forEach(key => {
+                  try {
+                    localStorage.removeItem(key);
+                  } catch (error) {
+                    // Silently handle individual key removal errors
+                  }
+                });
+              }
+            } catch (error) {
+              // Silently handle localStorage errors
+            }
+            await signOut();
+          }}
           className="text-xs px-3 py-1.5 rounded-full border border-zinc-800 text-zinc-500 hover:text-red-500 hover:border-red-500/50 transition-colors flex items-center gap-1.5"
         >
           <LogOut className="w-3 h-3" />

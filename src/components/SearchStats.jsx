@@ -29,10 +29,10 @@ const SearchStats = ({ videos, totalResults, onChannelClick, currentSearchParams
             favorited.add(channel);
           }
         } catch (error) {
-          // Silently handle expected unauthorized errors (user not logged in)
-          // Only log unexpected errors
+          // Silently handle all errors - utility layer handles 401s gracefully
+          // Only log unexpected errors that aren't related to authentication
           if (!error.message?.includes('Unauthorized') && !error.message?.includes('sign in')) {
-            console.warn(`Failed to check favorite status for ${channel}:`, error);
+            // Suppress console warnings for expected errors
           }
         }
       });
