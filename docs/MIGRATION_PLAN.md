@@ -345,7 +345,9 @@ POST /api/user-data
 14. ✅ Phase 4: Testing Guide Created - COMPLETE (`TESTING_PHASE3_PHASE4.md`)
 15. ⏳ Phase 4: Manual Testing - PENDING
 16. ✅ Bug Fixes (v4.5.1) - COMPLETE (empty array handling, race conditions)
-17. ⏳ Begin Phase 5: Transcription Queue API routes
+17. ✅ Phase 5: Transcription Queue API routes - COMPLETE
+18. ✅ Phase 5: Transcription Queue Frontend Integration - COMPLETE
+19. ⏳ Phase 5: Testing - PENDING
 
 ## Phase 1 Status: ✅ COMPLETE
 
@@ -399,6 +401,43 @@ POST /api/user-data
 
 **Bug Fixes (v4.5.1):**
 - ✅ Fixed race conditions in `FavoritesSidebar.jsx`
+
+## Phase 5 Status: ✅ COMPLETE
+
+**Transcription Queue API Routes & Frontend Integration (v4.6.0)**
+
+**Backend API Routes:**
+- ✅ `GET /api/transcription-queue` - List user's queue items (with optional status filter)
+- ✅ `POST /api/transcription-queue` - Add videos to queue (batch operation with transaction)
+- ✅ `DELETE /api/transcription-queue` - Clear queue or batch delete by video IDs (with optional status filter)
+- ✅ `GET /api/transcription-queue/[id]` - Get specific queue item
+- ✅ `PUT /api/transcription-queue/[id]` - Update queue item (status, priority, errorMessage)
+- ✅ `DELETE /api/transcription-queue/[id]` - Remove specific queue item
+
+**Frontend Integration:**
+- ✅ Created `src/services/transcriptionQueueService.js` API client
+- ✅ Updated `src/utils/transcriptionQueue.js` with dual-write pattern
+- ✅ Updated `app/page.jsx` to use async queue operations
+
+**Features:**
+- ✅ Status transition validation (pending → processing → completed/failed, failed → pending for retry)
+- ✅ Batch operations with Prisma transactions for atomicity
+- ✅ Batch delete optimization (eliminates N+1 query problem, single atomic operation)
+- ✅ Priority support (higher number = higher priority)
+- ✅ Duplicate detection (prevents adding same video twice)
+- ✅ Dual-write pattern (database + localStorage)
+- ✅ Efficient API responses (returns summary instead of all items for batch operations)
+- ✅ Video upsert (creates video record if not exists)
+
+**Status Transitions:**
+- `pending` → `processing` (valid)
+- `processing` → `completed` (valid)
+- `processing` → `failed` (valid)
+- `failed` → `pending` (valid, for retries)
+- `completed` → (no transitions, must re-queue as new item)
+
+**Documentation:**
+- ⏳ Testing guide - PENDING
 
 ## Phase 3 Status: ✅ COMPLETE
 

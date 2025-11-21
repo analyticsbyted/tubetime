@@ -117,7 +117,7 @@ function HomePageContent() {
   };
 
   // Handle queue for transcription
-  const handleQueue = () => {
+  const handleQueue = async () => {
     const selectedIds = Array.from(selection);
 
     if (selectedIds.length === 0) {
@@ -126,7 +126,7 @@ function HomePageContent() {
     }
 
     try {
-      const result = addToQueue(selectedIds);
+      const result = await addToQueue(selectedIds);
 
       if (result.success) {
         console.log('Queued for transcription:', selectedIds);
@@ -137,7 +137,7 @@ function HomePageContent() {
       }
     } catch (error) {
       console.error('Failed to queue videos:', error);
-      toast.error('Failed to queue videos for transcription.');
+      toast.error(error.message || 'Failed to queue videos for transcription.');
     }
   };
 

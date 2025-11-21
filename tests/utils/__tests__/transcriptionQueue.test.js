@@ -6,7 +6,7 @@ import {
   clearQueue,
   isInQueue,
   getQueueSize,
-} from '../transcriptionQueue';
+} from '@/utils/transcriptionQueue';
 
 describe('transcriptionQueue', () => {
   beforeEach(() => {

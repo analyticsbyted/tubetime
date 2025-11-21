@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import { useSelection } from '../useSelection';
+import { useSelection } from '@/hooks/useSelection';
 
 describe('useSelection', () => {
   it('should initialize with empty selection', () => {

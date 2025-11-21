@@ -58,6 +58,7 @@ export async function POST(request) {
     // If channelName is provided, first find the channelId for accurate results
     let channelId = null;
     if (channelName && channelName.trim().length > 0) {
+      let channelSearchResponse;
       try {
         // Search for channel by name
         const channelSearchParams = new URLSearchParams({
@@ -68,20 +69,21 @@ export async function POST(request) {
           key: apiKey,
         });
         
-        const channelSearchResponse = await fetch(
+        channelSearchResponse = await fetch(
           `https://www.googleapis.com/youtube/v3/search?${channelSearchParams.toString()}`
         );
         
-        if (channelSearchResponse.ok) {
+      } catch (fetchError) {
+        console.warn('Failed to find channel ID (network/fetch error), falling back to name filtering:', fetchError);
+        channelSearchResponse = { ok: false, json: async () => ({}) }; // Create a mock response
+      }
+
+      if (channelSearchResponse.ok) {
           const channelData = await channelSearchResponse.json();
           if (channelData.items && channelData.items.length > 0) {
             channelId = channelData.items[0].id.channelId;
           }
         }
-      } catch (error) {
-        console.warn('Failed to find channel ID, falling back to name filtering:', error);
-        // Continue with name-based filtering if channel lookup fails
-      }
     }
 
     // Build search params
@@ -125,7 +127,25 @@ export async function POST(request) {
     }
 
     // Fetch search results
-    const searchResponse = await fetch(`${YOUTUBE_API_URL}?${params.toString()}`);
+    let searchResponse;
+    try {
+      searchResponse = await fetch(`${YOUTUBE_API_URL}?${params.toString()}`);
+      // Handle case where fetch returns undefined (shouldn't happen, but handle gracefully)
+      if (!searchResponse) {
+        console.error('Fetch returned undefined - this should not happen');
+        return NextResponse.json(
+          { error: 'Network error or failed to connect to YouTube API.' },
+          { status: 500 }
+        );
+      }
+    } catch (fetchError) {
+      console.error('Failed to fetch search results (network/fetch error):', fetchError);
+      // If fetch itself fails (e.g., network error), return a 500 error
+      return NextResponse.json(
+        { error: 'Network error or failed to connect to YouTube API.' },
+        { status: 500 }
+      );
+    }
     
     if (!searchResponse.ok) {
       const errorData = await searchResponse.json().catch(() => ({}));
@@ -152,10 +172,22 @@ export async function POST(request) {
       key: apiKey,
     });
 
-    const videosResponse = await fetch(`${YOUTUBE_VIDEOS_API_URL}?${videosParams.toString()}`);
+    let videosResponse;
+    try {
+      videosResponse = await fetch(`${YOUTUBE_VIDEOS_API_URL}?${videosParams.toString()}`);
+      // Handle case where fetch returns undefined (shouldn't happen, but handle gracefully)
+      if (!videosResponse) {
+        console.warn('Fetch returned undefined for video details, returning basic results');
+        videosResponse = { ok: false, json: async () => ({}) };
+      }
+    } catch (fetchError) {
+      console.warn('Failed to fetch video details (network/fetch error), returning basic results:', fetchError);
+      videosResponse = { ok: false, json: async () => ({}) }; // Create a mock response for graceful handling
+    }
     
+    // Now videosResponse is guaranteed to be defined
     if (!videosResponse.ok) {
-      // If detailed fetch fails, return basic results
+      // If detailed fetch fails (either network error or !ok response), return basic results
       console.warn('Failed to fetch video details, returning basic results');
     }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDatePreset, DATE_PRESETS } from '../datePresets';
+import { getDatePreset, DATE_PRESETS } from '@/utils/datePresets';
 
 describe('datePresets', () => {
   it('should return correct date range for last7days', () => {

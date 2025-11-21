@@ -1,7 +1,11 @@
 /**
  * Transcription queue utilities for managing videos queued for transcription
- * Uses localStorage for persistence (ready for backend integration in Phase 2)
+ * 
+ * During migration period, writes to both database (via API) and localStorage.
+ * Reads prioritize database but fallback to localStorage for unauthenticated users.
  */
+
+import * as transcriptionQueueService from '../services/transcriptionQueueService';
 
 const QUEUE_KEY = 'tubetime_transcription_queue';
 const MAX_QUEUE_SIZE = 1000; // Reasonable limit for localStorage
@@ -22,12 +26,11 @@ const isLocalStorageAvailable = () => {
 };
 
 /**
- * Gets all queued video IDs
+ * Gets all queued video IDs from localStorage (internal helper)
  * @returns {string[]} Array of video IDs in the queue
  */
-export const getQueue = () => {
+const getQueueLocal = () => {
   if (!isLocalStorageAvailable()) {
-    console.warn('localStorage is not available. Queue will not persist.');
     return [];
   }
 
@@ -59,12 +62,89 @@ export const getQueue = () => {
 };
 
 /**
- * Adds video IDs to the transcription queue
- * @param {string[]|Set<string>} videoIds - Array or Set of video IDs to add
- * @returns {{success: boolean, added: number, skipped: number, message: string}}
+ * Gets all queued video IDs (dual-read pattern: API first, localStorage fallback)
+ * @returns {Promise<string[]>} Array of video IDs in the queue
  */
-export const addToQueue = (videoIds) => {
+export const getQueue = async () => {
+  try {
+    // Try to get from database first
+    const dbQueue = await transcriptionQueueService.getQueue();
+    if (dbQueue && dbQueue.items && dbQueue.items.length >= 0) {
+      // Return array of video IDs
+      return dbQueue.items.map(item => item.videoId);
+    }
+  } catch (error) {
+    // If API fails (unauthorized, network error, etc.), fallback to localStorage
+    if (error.message.includes('Unauthorized') || error.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue to localStorage
+    } else {
+      console.warn('Failed to fetch queue from database, using localStorage:', error);
+    }
+  }
+
+  // Fallback to localStorage
+  return getQueueLocal();
+};
+
+/**
+ * Adds video IDs to the transcription queue (dual-write pattern)
+ * @param {string[]|Set<string>} videoIds - Array or Set of video IDs to add
+ * @param {number} [priority=0] - Priority level (higher = higher priority)
+ * @returns {Promise<{success: boolean, added: number, skipped: number, message: string}>}
+ */
+export const addToQueue = async (videoIds, priority = 0) => {
+  // Convert input to array if it's a Set
+  const idsToAdd = Array.isArray(videoIds) ? videoIds : Array.from(videoIds);
+  
+  // Validate input
+  if (!idsToAdd || idsToAdd.length === 0) {
+    return {
+      success: false,
+      added: 0,
+      skipped: 0,
+      message: 'No video IDs provided.',
+    };
+  }
+
+  // Validate IDs
+  const validIds = idsToAdd.filter(id => typeof id === 'string' && id.trim().length > 0);
+  if (validIds.length === 0) {
+    return {
+      success: false,
+      added: 0,
+      skipped: 0,
+      message: 'No valid video IDs provided.',
+    };
+  }
+
+  let dbSuccess = false;
+  let dbResult = { added: 0, skipped: 0 };
+  let localStorageSuccess = false;
+
+  // 1. Try to save to database if authenticated
+  try {
+    const result = await transcriptionQueueService.addToQueue(validIds, priority);
+    dbResult = result;
+    dbSuccess = true;
+  } catch (dbError) {
+    // Continue to localStorage fallback
+    if (dbError.message.includes('Unauthorized') || dbError.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue silently
+    } else {
+      console.warn('Database save failed, continuing with localStorage:', dbError);
+    }
+  }
+
+  // 2. Always save to localStorage during dual-write period
   if (!isLocalStorageAvailable()) {
+    if (dbSuccess) {
+      return {
+        success: true,
+        added: dbResult.added,
+        skipped: dbResult.skipped,
+        message: dbResult.message,
+      };
+    }
     return {
       success: false,
       added: 0,
@@ -74,69 +154,69 @@ export const addToQueue = (videoIds) => {
   }
 
   try {
-    const currentQueue = getQueue();
+    const currentQueue = getQueueLocal();
     const queueSet = new Set(currentQueue);
     
-    // Convert input to array if it's a Set
-    const idsToAdd = Array.isArray(videoIds) ? videoIds : Array.from(videoIds);
-    
-    // Validate input
-    if (!idsToAdd || idsToAdd.length === 0) {
-      return {
-        success: false,
-        added: 0,
-        skipped: 0,
-        message: 'No video IDs provided.',
-      };
-    }
+    let localAdded = 0;
+    let localSkipped = 0;
 
-    let added = 0;
-    let skipped = 0;
-
-    for (const id of idsToAdd) {
-      // Validate ID format
-      if (typeof id !== 'string' || id.length === 0) {
-        skipped++;
-        continue;
-      }
-
+    for (const id of validIds) {
       // Check queue size limit
       if (queueSet.size >= MAX_QUEUE_SIZE) {
-        skipped++;
+        localSkipped++;
         continue;
       }
 
       // Add if not already in queue
       if (!queueSet.has(id)) {
         queueSet.add(id);
-        added++;
+        localAdded++;
       } else {
-        skipped++;
+        localSkipped++;
       }
     }
 
     // Save updated queue
     const updatedQueue = Array.from(queueSet);
     localStorage.setItem(QUEUE_KEY, JSON.stringify(updatedQueue));
+    localStorageSuccess = true;
+
+    // Return best result (prefer database if successful, otherwise localStorage)
+    if (dbSuccess) {
+      return {
+        success: true,
+        added: dbResult.added,
+        skipped: dbResult.skipped,
+        message: dbResult.message,
+      };
+    }
 
     return {
-      success: true,
-      added,
-      skipped,
-      message: `Added ${added} video${added !== 1 ? 's' : ''} to transcription queue.${skipped > 0 ? ` ${skipped} already in queue or skipped.` : ''}`,
+      success: localAdded > 0,
+      added: localAdded,
+      skipped: localSkipped,
+      message: `Added ${localAdded} video${localAdded !== 1 ? 's' : ''} to transcription queue.${localSkipped > 0 ? ` ${localSkipped} already in queue or skipped.` : ''}`,
     };
   } catch (error) {
     if (error.name === 'QuotaExceededError') {
       // Try to clean up old entries
       try {
-        const currentQueue = getQueue();
+        const currentQueue = getQueueLocal();
         // Keep only the most recent 500 entries
         const trimmedQueue = currentQueue.slice(-500);
         localStorage.setItem(QUEUE_KEY, JSON.stringify(trimmedQueue));
         
         // Retry with trimmed queue
-        return addToQueue(videoIds);
+        return addToQueue(videoIds, priority);
       } catch (retryError) {
+        if (dbSuccess) {
+          return {
+            success: true,
+            added: dbResult.added,
+            skipped: dbResult.skipped,
+            message: `${dbResult.message} Note: localStorage quota exceeded.`,
+          };
+        }
         return {
           success: false,
           added: 0,
@@ -147,6 +227,14 @@ export const addToQueue = (videoIds) => {
     }
 
     console.error('Failed to add to transcription queue:', error);
+    if (dbSuccess) {
+      return {
+        success: true,
+        added: dbResult.added,
+        skipped: dbResult.skipped,
+        message: `${dbResult.message} Note: localStorage save failed.`,
+      };
+    }
     return {
       success: false,
       added: 0,
@@ -157,12 +245,48 @@ export const addToQueue = (videoIds) => {
 };
 
 /**
- * Removes video IDs from the queue
+ * Removes video IDs from the queue (dual-write pattern)
  * @param {string[]|Set<string>} videoIds - Array or Set of video IDs to remove
- * @returns {{success: boolean, removed: number, message: string}}
+ * @returns {Promise<{success: boolean, removed: number, message: string}>}
  */
-export const removeFromQueue = (videoIds) => {
+export const removeFromQueue = async (videoIds) => {
+  // Convert input to array if it's a Set
+  const idsToRemove = Array.isArray(videoIds) ? videoIds : Array.from(videoIds);
+  
+  if (!idsToRemove || idsToRemove.length === 0) {
+    return {
+      success: false,
+      removed: 0,
+      message: 'No video IDs provided.',
+    };
+  }
+
+  let dbSuccess = false;
+  let dbResult = { removed: 0 };
+
+  // 1. Try to delete from database if authenticated
+  try {
+    const result = await transcriptionQueueService.removeFromQueue(idsToRemove);
+    dbResult = result;
+    dbSuccess = true;
+  } catch (dbError) {
+    // Continue to localStorage deletion
+    if (dbError.message.includes('Unauthorized') || dbError.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue silently
+    } else {
+      console.warn('Failed to remove from database:', dbError);
+    }
+  }
+
+  // 2. Always delete from localStorage during dual-write period
   if (!isLocalStorageAvailable()) {
+    if (dbSuccess) {
+      return {
+        success: true,
+        removed: dbResult.removed,
+        message: dbResult.message,
+      };
+    }
     return {
       success: false,
       removed: 0,
@@ -171,17 +295,14 @@ export const removeFromQueue = (videoIds) => {
   }
 
   try {
-    const currentQueue = getQueue();
+    const currentQueue = getQueueLocal();
     const queueSet = new Set(currentQueue);
     
-    // Convert input to array if it's a Set
-    const idsToRemove = Array.isArray(videoIds) ? videoIds : Array.from(videoIds);
-    
-    let removed = 0;
+    let localRemoved = 0;
     for (const id of idsToRemove) {
       if (queueSet.has(id)) {
         queueSet.delete(id);
-        removed++;
+        localRemoved++;
       }
     }
 
@@ -189,13 +310,29 @@ export const removeFromQueue = (videoIds) => {
     const updatedQueue = Array.from(queueSet);
     localStorage.setItem(QUEUE_KEY, JSON.stringify(updatedQueue));
 
+    // Return best result (prefer database if successful, otherwise localStorage)
+    if (dbSuccess) {
+      return {
+        success: true,
+        removed: dbResult.removed,
+        message: dbResult.message,
+      };
+    }
+
     return {
-      success: true,
-      removed,
-      message: `Removed ${removed} video${removed !== 1 ? 's' : ''} from queue.`,
+      success: localRemoved > 0,
+      removed: localRemoved,
+      message: `Removed ${localRemoved} video${localRemoved !== 1 ? 's' : ''} from queue.`,
     };
   } catch (error) {
     console.error('Failed to remove from transcription queue:', error);
+    if (dbSuccess) {
+      return {
+        success: true,
+        removed: dbResult.removed,
+        message: `${dbResult.message} Note: localStorage removal failed.`,
+      };
+    }
     return {
       success: false,
       removed: 0,
@@ -205,11 +342,36 @@ export const removeFromQueue = (videoIds) => {
 };
 
 /**
- * Clears the entire transcription queue
- * @returns {{success: boolean, message: string}}
+ * Clears the entire transcription queue (dual-write pattern)
+ * @param {string} [status] - Optional: clear only items with this status
+ * @returns {Promise<{success: boolean, message: string}>}
  */
-export const clearQueue = () => {
+export const clearQueue = async (status) => {
+  let dbSuccess = false;
+  let dbMessage = '';
+
+  // 1. Try to clear from database if authenticated
+  try {
+    const result = await transcriptionQueueService.clearQueue(status);
+    dbMessage = result.message;
+    dbSuccess = true;
+  } catch (dbError) {
+    // Continue to localStorage deletion
+    if (dbError.message.includes('Unauthorized') || dbError.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue silently
+    } else {
+      console.warn('Failed to clear queue from database:', dbError);
+    }
+  }
+
+  // 2. Always clear from localStorage during dual-write period
   if (!isLocalStorageAvailable()) {
+    if (dbSuccess) {
+      return {
+        success: true,
+        message: dbMessage,
+      };
+    }
     return {
       success: false,
       message: 'localStorage is not available.',
@@ -218,12 +380,25 @@ export const clearQueue = () => {
 
   try {
     localStorage.removeItem(QUEUE_KEY);
+    // Return best result (prefer database if successful, otherwise localStorage)
+    if (dbSuccess) {
+      return {
+        success: true,
+        message: dbMessage,
+      };
+    }
     return {
       success: true,
       message: 'Transcription queue cleared.',
     };
   } catch (error) {
     console.error('Failed to clear transcription queue:', error);
+    if (dbSuccess) {
+      return {
+        success: true,
+        message: `${dbMessage} Note: localStorage clear failed.`,
+      };
+    }
     return {
       success: false,
       message: error.message || 'Failed to clear queue.',
@@ -232,20 +407,48 @@ export const clearQueue = () => {
 };
 
 /**
- * Checks if a video ID is in the queue
+ * Checks if a video ID is in the queue (dual-read pattern)
  * @param {string} videoId - Video ID to check
- * @returns {boolean} True if video is in queue
+ * @returns {Promise<boolean>} True if video is in queue
  */
-export const isInQueue = (videoId) => {
-  const queue = getQueue();
-  return queue.includes(videoId);
+export const isInQueue = async (videoId) => {
+  try {
+    // Try database first
+    const result = await transcriptionQueueService.isInQueue(videoId);
+    return result;
+  } catch (error) {
+    // Fallback to localStorage
+    if (error.message.includes('Unauthorized') || error.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue to localStorage
+    } else {
+      console.warn('Failed to check queue in database, using localStorage:', error);
+    }
+    const queue = getQueueLocal();
+    return queue.includes(videoId);
+  }
 };
 
 /**
- * Gets the queue size
- * @returns {number} Number of videos in queue
+ * Gets the queue size (dual-read pattern)
+ * @param {string} [status] - Optional: filter by status
+ * @returns {Promise<number>} Number of videos in queue
  */
-export const getQueueSize = () => {
-  return getQueue().length;
+export const getQueueSize = async (status) => {
+  try {
+    // Try database first
+    const result = await transcriptionQueueService.getQueueSize(status);
+    return result;
+  } catch (error) {
+    // Fallback to localStorage
+    if (error.message.includes('Unauthorized') || error.message.includes('sign in')) {
+      // Expected for unauthenticated users, continue to localStorage
+    } else {
+      console.warn('Failed to get queue size from database, using localStorage:', error);
+    }
+    const queue = getQueueLocal();
+    // If status filter is requested, we can't filter localStorage (it only stores IDs)
+    // So return all for now
+    return queue.length;
+  }
 };
 

@@ -16,16 +16,22 @@ class MockRequest {
 
 // Mock environment variable
 const originalEnv = process.env;
+const originalFetch = global.fetch;
 
 describe('POST /api/youtube/search', () => {
   beforeEach(() => {
-    // Reset mocks
-    vi.clearAllMocks();
-    // Set up environment
+    // Set up environment first
     process.env = {
       ...originalEnv,
       YOUTUBE_API_KEY: 'test-api-key',
     };
+    // Clear mocks but preserve global stubs
+    vi.clearAllMocks();
+    // Ensure fetch is available for stubbing
+    if (typeof global.fetch === 'undefined' && typeof globalThis.fetch === 'undefined') {
+      global.fetch = vi.fn();
+      globalThis.fetch = global.fetch;
+    }
   });
 
   afterEach(() => {
@@ -67,14 +73,26 @@ describe('POST /api/youtube/search', () => {
 
     it('should accept empty query if channelName is provided', async () => {
       // Mock fetch for YouTube API
-      global.fetch = vi.fn()
+      // First: Channel lookup (should fail/return empty to trigger client-side filtering)
+      // Second: Video search (returns empty results)
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ items: [] }),
+        })
         .mockResolvedValueOnce({
           ok: true,
+          status: 200,
           json: async () => ({
             items: [],
             pageInfo: { totalResults: 0 },
           }),
         });
+      // Use stubGlobal and also set on both global and globalThis
+      vi.stubGlobal('fetch', mockFetch);
+      global.fetch = mockFetch;
+      globalThis.fetch = mockFetch;
 
       const request = new MockRequest('http://localhost:3000/api/youtube/search', {
         method: 'POST',
@@ -284,13 +302,23 @@ describe('POST /api/youtube/search', () => {
         pageInfo: { totalResults: 2 },
       };
 
-      global.fetch = vi.fn()
+      const mockFetch = vi.fn()
+        // First fetch: Channel lookup (should fail/return empty to trigger client-side filtering)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ items: [] }),
+        })
+        // Second fetch: Video search
         .mockResolvedValueOnce({
           ok: true,
+          status: 200,
           json: async () => mockSearchResponse,
         })
+        // Third fetch: Video details
         .mockResolvedValueOnce({
           ok: true,
+          status: 200,
           json: async () => ({
             items: [
               { id: 'video-1', statistics: {}, contentDetails: {}, snippet: {} },
@@ -298,6 +326,10 @@ describe('POST /api/youtube/search', () => {
             ],
           }),
         });
+      // Use stubGlobal and also set on both global and globalThis
+      vi.stubGlobal('fetch', mockFetch);
+      global.fetch = mockFetch;
+      globalThis.fetch = mockFetch;
 
       const request = new MockRequest('http://localhost:3000/api/youtube/search', {
         method: 'POST',
