@@ -192,3 +192,13 @@ className="bg-zinc-950 border border-zinc-700 text-zinc-100 focus:ring-2 focus:r
 - [WCAG Contrast Guidelines](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html)
 - Design inspiration: Bloomberg Terminal, Linear.app
 
+## Component Positioning
+
+### Toaster Notifications
+- Changed the default position from `top-right` to `top-center`.
+- Rationale: Centered notifications feel more integrated with the centered layout of the application, especially on large displays.
+
+### Favorites Sidebar
+- Changed the positioning from `fixed` to `absolute`.
+- Attached the sidebar to the `main` content container, which has a `relative` position.
+- This keeps the sidebar closer to the main content area on large displays, improving usability and focus.

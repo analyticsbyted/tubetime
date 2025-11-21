@@ -70,7 +70,7 @@ const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 bg-zinc-950 border-l border-zinc-800 z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`absolute top-0 right-0 h-full w-80 bg-zinc-950 border-l border-zinc-800 z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         } flex flex-col shadow-2xl`}
       >

@@ -5,6 +5,40 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.3] - 2025-11-20
+
+### Fixed
+
+- **NextAuth.js v5 Beta Compatibility:**
+  - Updated all API routes to use `auth()` from `@/auth` instead of deprecated `getServerSession`
+  - Fixed Prisma client initialization by removing custom output path in `prisma/schema.prisma`
+  - Fixed module resolution for `@/lib/prisma` by updating `jsconfig.json` path aliases
+  - Suppressed expected 401 error logging in API routes for unauthenticated users
+  - Updated `SearchStats.jsx` to suppress console warnings for expected unauthorized errors
+
+- **Google Sign-In UI Update Issue:**
+  - Fixed session not refreshing after Google OAuth callback completes
+  - Updated `SessionProvider` to use `refetchOnWindowFocus={true}` to refresh session when window regains focus
+  - Added `callbackUrl` parameter to sign-in calls to ensure proper redirect after OAuth
+  - Added OAuth callback detection in `Header.jsx` to trigger session refresh check
+  - Sign-in button now correctly updates to show user info after Google authentication
+
+### Changed
+
+- **Error Handling:**
+  - API routes now check for `Unauthorized` errors before logging to prevent noise in logs
+  - Frontend components gracefully handle expected authentication failures without console warnings
+  - Improved user experience when logged out (no error spam in console)
+
+- **Session Management:**
+  - `SessionProvider` now configured to automatically refresh session on window focus
+  - Sign-in buttons explicitly set `callbackUrl` to maintain application state after OAuth redirect
+
+### Known Issues
+
+- ⚠️ **Build errors may appear intermittently** during compilation but don't prevent runtime functionality
+- NextAuth.js v5 beta API is still evolving - may require updates as library stabilizes
+
 ## [4.5.2] - 2025-11-20
 
 ### Changed
@@ -17,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `README.md` and `CONTEXT.md` to reflect the new project structure.
   - Added `src/generated/` to `.gitignore` so regenerated Prisma client artifacts are not committed.
   - Consolidated Prisma client helper to `src/lib/prisma.js` and removed the legacy root-level copy to avoid confusion about the canonical import path.
+  - Updated `jsconfig.json` path alias so `@/*` resolves to `./src/*`, fixing build errors for imports like `@/lib/prisma`.
 
 ## [4.5.1] - 2025-01-XX
 
@@ -358,7 +393,7 @@ See `SEARCH_HISTORY_IMPLEMENTATION_SUMMARY.md` and `TESTING_PHASE3_PHASE4.md` fo
 - **Authentication**: NextAuth.js v4.24.13 with Prisma adapter for persistent sessions
 - **Schema Location**: `prisma/schema.prisma`
 - **Migrations**: Applied via `npx prisma migrate dev`
-- **Prisma Client**: Generated to `src/generated/prisma` (custom output path)
+- **Prisma Client**: Generated via `npx prisma generate` (uses default `node_modules/@prisma/client`)
 - **Prisma Version**: Standardized on v6.19.0 (stable) instead of v7 for reliability
 
 ### Development Notes

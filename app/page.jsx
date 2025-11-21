@@ -190,12 +190,12 @@ function HomePageContent() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-red-500/30 flex flex-col">
-      <Toaster position="top-right" theme="dark" />
+      <Toaster position="top-center" theme="dark" />
       <Header 
         selectedCount={selection.size} 
         onOpenFavorites={() => setIsFavoritesOpen(true)} 
       />
-      <main className="max-w-7xl mx-auto px-4 py-8 flex-1">
+      <main className="max-w-7xl mx-auto px-4 py-8 flex-1 relative overflow-hidden">
         <SearchHistory
           isOpen={isHistoryOpen}
           onClose={() => setIsHistoryOpen(false)}

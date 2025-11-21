@@ -29,7 +29,11 @@ const SearchStats = ({ videos, totalResults, onChannelClick, currentSearchParams
             favorited.add(channel);
           }
         } catch (error) {
-          console.warn(`Failed to check favorite status for ${channel}:`, error);
+          // Silently handle expected unauthorized errors (user not logged in)
+          // Only log unexpected errors
+          if (!error.message?.includes('Unauthorized') && !error.message?.includes('sign in')) {
+            console.warn(`Failed to check favorite status for ${channel}:`, error);
+          }
         }
       });
       
@@ -178,7 +182,7 @@ const SearchStats = ({ videos, totalResults, onChannelClick, currentSearchParams
                       className={`flex-shrink-0 p-1 rounded transition-colors ${
                         isFav 
                           ? 'text-red-500 hover:text-red-400' 
-                          : 'text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100'
+                          : 'text-zinc-500 hover:text-red-400'
                       }`}
                       title={isFav ? 'Remove from favorites' : 'Add to favorites'}
                     >
