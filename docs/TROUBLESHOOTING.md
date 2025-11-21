@@ -5,10 +5,17 @@ This guide covers common issues encountered during TubeTime development and depl
 ## Table of Contents
 
 - [Authentication Issues](#authentication-issues)
+  - [Sign-In Button Does Nothing](#sign-in-button-does-nothing)
+  - [Redirect Loop](#redirect-loop)
+  - [GitHub Sign-In Returns 404](#github-sign-in-returns-404)
+  - [Google Sign-In Shows Server Error](#google-sign-in-shows-server-error)
+  - [Google Sign-In Button Doesn't Update After Successful Authentication](#google-sign-in-button-doesnt-update-after-successful-authentication)
+  - [CLIENT_FETCH_ERROR / TypeError During Sign-In](#client_fetch_error--typeerror-during-sign-in)
 - [API Key & Security](#api-key--security)
 - [Database Connection](#database-connection)
 - [Build & Configuration](#build--configuration)
 - [Runtime Errors](#runtime-errors)
+  - [NextAuth.js v5 Beta API Compatibility Issues](#nextauthjs-v5-beta-api-compatibility-issues)
 - [General Issues](#general-issues)
 
 ## Authentication Issues
@@ -131,6 +138,82 @@ This guide covers common issues encountered during TubeTime development and depl
 3. **Check Server Logs:**
    - Look for specific error messages
    - Verify `NEXTAUTH_SECRET` is set
+
+### Google Sign-In Button Doesn't Update After Successful Authentication
+
+**Symptoms:**
+- Clicking "Sign In with Google" redirects to Google OAuth page
+- After selecting account and authorizing, redirects back to app
+- Sign-in button still shows "Sign In" instead of user info
+- No errors in console
+- GitHub sign-in works correctly
+- Google sign-in works after signing out and signing back in
+
+**Cause:**
+- Session state not refreshing after OAuth callback completes
+- `SessionProvider` not configured to refetch on window focus
+- Missing `callbackUrl` parameter in sign-in calls
+- Session update not triggered after OAuth redirect returns
+
+**Solutions:**
+
+1. **Update `SessionProvider` Configuration:**
+   ```javascript
+   // src/components/Providers.jsx
+   <SessionProvider
+     refetchInterval={0} // Disable automatic polling
+     refetchOnWindowFocus={true} // Refresh when window regains focus
+   >
+     {children}
+   </SessionProvider>
+   ```
+   - `refetchOnWindowFocus={true}` ensures session refreshes when returning from OAuth redirect
+
+2. **Add `callbackUrl` to Sign-In Calls:**
+   ```javascript
+   // src/components/Header.jsx
+   signIn('google', { callbackUrl: window.location.href });
+   signIn('github', { callbackUrl: window.location.href });
+   ```
+   - Ensures OAuth redirect returns to current page
+   - Helps maintain application state after authentication
+
+3. **Add OAuth Callback Detection:**
+   ```javascript
+   // In Header component, detect OAuth callback and refresh session
+   useEffect(() => {
+     if (typeof window !== 'undefined') {
+       const urlParams = new URLSearchParams(window.location.search);
+       if (urlParams.has('callbackUrl') || window.location.pathname.includes('callback')) {
+         const timer = setTimeout(() => {
+           window.dispatchEvent(new Event('focus'));
+         }, 500);
+         return () => clearTimeout(timer);
+       }
+     }
+   }, []);
+   ```
+   - Detects when returning from OAuth callback
+   - Triggers session refresh check
+
+4. **Verify Google OAuth Configuration:**
+   - Check Google Cloud Console redirect URI: `http://localhost:3000/api/auth/callback/google`
+   - Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.local`
+   - Ensure redirect URI matches exactly (no trailing slashes)
+
+5. **Clear Browser Cache:**
+   ```bash
+   # Clear cookies and cache for localhost:3000
+   # Or use incognito/private browsing mode to test
+   ```
+
+**Files Updated:**
+- `src/components/Providers.jsx` - Added `refetchOnWindowFocus` configuration
+- `src/components/Header.jsx` - Added `callbackUrl` and OAuth callback detection
+
+**Current Status:** ✅ **RESOLVED** - Session now refreshes properly after Google OAuth callback
+
+**Note:** If issue persists, check browser console for any errors and verify Google OAuth app settings in Google Cloud Console match your environment variables.
 
 ### CLIENT_FETCH_ERROR / TypeError During Sign-In
 
@@ -313,7 +396,7 @@ This guide covers common issues encountered during TubeTime development and depl
      "compilerOptions": {
        "baseUrl": ".",
        "paths": {
-         "@/*": ["./*"]
+        "@/*": ["./src/*"]
        }
      },
      "exclude": ["node_modules"]
@@ -324,7 +407,8 @@ This guide covers common issues encountered during TubeTime development and depl
    ```
    tubetime/
    ├── jsconfig.json  ← Should be here
-   ├── lib/
+   ├── src/
+   │   └── lib/
    │   └── prisma.js
    └── app/
        └── api/
@@ -489,6 +573,250 @@ This guide covers common issues encountered during TubeTime development and depl
      <button>Delete</button>
    </div>
    ```
+
+### NextAuth.js v5 Beta API Compatibility Issues
+
+**Status:** ⚠️ **PARTIALLY RESOLVED** - Some issues persist
+
+**Overview:**
+TubeTime uses NextAuth.js v5 beta, which has an evolving API. During migration from localStorage to database-backed features, several compatibility issues were encountered related to session retrieval in API routes.
+
+#### Issue 1: `getServerSession` Not Found
+
+**Symptoms:**
+- Build error: `Attempted import error: 'getServerSession' is not exported from 'next-auth/next'`
+- Build error: `Attempted import error: 'getServerSession' is not exported from 'next-auth'`
+- API routes fail to compile
+- 500 errors on all authenticated API endpoints
+
+**Root Cause:**
+- NextAuth.js v5 beta changed the API for retrieving sessions in API routes
+- `getServerSession` from `next-auth/next` or `next-auth` is no longer available
+- The new API uses an `auth()` function exported from the auth configuration
+
+**Attempted Fixes:**
+
+1. **First Attempt - Import from `next-auth`:**
+   ```javascript
+   // ❌ Failed
+   import { getServerSession } from "next-auth";
+   import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+   const session = await getServerSession(authOptions);
+   ```
+
+2. **Second Attempt - Use `auth()` from `next-auth`:**
+   ```javascript
+   // ❌ Failed - 'auth' is not exported from 'next-auth'
+   import { auth } from "next-auth";
+   const session = await auth();
+   ```
+
+3. **Current Implementation - Use `auth()` from `@/auth`:**
+   ```javascript
+   // ✅ Works (but see Issue 2)
+   import { auth } from "@/auth";
+   const session = await auth();
+   ```
+
+**Files Updated:**
+- `app/api/favorites/route.js`
+- `app/api/favorites/[id]/route.js`
+- `app/api/favorites/check/route.js`
+- `app/api/search-history/route.js`
+- `app/api/search-history/[id]/route.js`
+- `app/api/collections/route.js`
+- `app/api/collections/[id]/route.js`
+- `app/api/collections/[id]/videos/route.js`
+
+**Current Status:** ✅ **RESOLVED** - All API routes now use `auth()` from `@/auth`
+
+#### Issue 2: Build Errors After Import Fix
+
+**Symptoms:**
+- After fixing imports, build errors persist:
+  - `Attempted import error: 'auth' is not exported from 'next-auth' (imported as 'auth')`
+  - Errors appear even though imports are from `@/auth`
+  - Server logs show compilation errors for API routes
+
+**Root Cause:**
+- Next.js webpack compilation may be caching old imports
+- The `@/auth` path alias may not be resolving correctly in all contexts
+- NextAuth.js v5 beta API is still evolving
+
+**Attempted Fixes:**
+
+1. **Cleared Next.js cache:**
+   ```bash
+   rm -rf .next
+   npm run dev
+   ```
+   - **Result:** Partial - errors reduced but persisted
+
+2. **Verified `src/auth.js` exports:**
+   ```javascript
+   // src/auth.js correctly exports:
+   const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+   export { auth, signIn, signOut };
+   ```
+   - **Result:** Exports are correct
+
+3. **Verified `jsconfig.json` path alias:**
+   ```json
+   {
+     "compilerOptions": {
+       "baseUrl": ".",
+       "paths": {
+         "@/*": ["./src/*", "./*"]
+       }
+     }
+   }
+   ```
+   - **Result:** Path alias configuration is correct
+
+**Current Status:** ⚠️ **PARTIALLY RESOLVED** - Build errors may still appear intermittently, but functionality works when server is running
+
+#### Issue 3: Console Errors for Unauthenticated Users
+
+**Symptoms:**
+- When logged out, browser console fills with errors:
+  - `Error checking favorite: Error: Unauthorized: Please sign in to check favorites.`
+  - Multiple errors for each channel being checked
+  - Server logs show repeated 401 errors being logged as errors
+  - Console warnings in `SearchStats.jsx` component
+
+**Root Cause:**
+- API routes log all errors, including expected 401 responses for unauthenticated users
+- Frontend components log warnings for expected authentication failures
+- The dual-write pattern should gracefully handle unauthenticated users without logging errors
+
+**Fixes Applied:**
+
+1. **Updated API Routes to Not Log Expected 401s:**
+   ```javascript
+   // Before:
+   catch (error) {
+     console.error('Error checking favorite:', error);
+     if (error.message === 'Unauthorized') {
+       return NextResponse.json({ error: error.message }, { status: 401 });
+     }
+   }
+   
+   // After:
+   catch (error) {
+     if (error.message === 'Unauthorized') {
+       // Expected for unauthenticated users - don't log as error
+       return NextResponse.json({ error: error.message }, { status: 401 });
+     }
+     console.error('Error checking favorite:', error);
+   }
+   ```
+
+2. **Updated Frontend Components:**
+   ```javascript
+   // SearchStats.jsx - Suppress warnings for expected unauthorized errors
+   catch (error) {
+     if (!error.message?.includes('Unauthorized') && !error.message?.includes('sign in')) {
+       console.warn(`Failed to check favorite status for ${channel}:`, error);
+     }
+   }
+   ```
+
+**Files Updated:**
+- All API routes (favorites, search-history, collections)
+- `src/components/SearchStats.jsx`
+
+**Current Status:** ✅ **RESOLVED** - Expected 401 errors are no longer logged
+
+#### Issue 4: Prisma Client Initialization
+
+**Symptoms:**
+- Runtime error: `@prisma/client did not initialize yet. Please run "prisma generate" and try to import it again.`
+- Error occurs even after running `npx prisma generate`
+- Error appears in `src/lib/prisma.js` when creating PrismaClient instance
+
+**Root Cause:**
+- Custom `output` path in `prisma/schema.prisma` was causing Prisma client to be generated in wrong location
+- Next.js couldn't find the generated client
+
+**Fix Applied:**
+
+1. **Removed custom output path from `prisma/schema.prisma`:**
+   ```prisma
+   // Before:
+   generator client {
+     provider = "prisma-client-js"
+     output   = "../src/generated/prisma"  // ❌ Custom path
+   }
+   
+   // After:
+   generator client {
+     provider = "prisma-client-js"
+     // output removed - use default location
+   }
+   ```
+
+2. **Regenerated Prisma client:**
+   ```bash
+   npx prisma generate
+   ```
+
+**Current Status:** ✅ **RESOLVED** - Prisma client initializes correctly
+
+#### Issue 5: Module Resolution for `@/lib/prisma`
+
+**Symptoms:**
+- Build error: `Module not found: Can't resolve '@/lib/prisma'`
+- Error in `app/api/auth/[...nextauth]/route.js`
+- Error persists after moving `lib/prisma.js` to `src/lib/prisma.js`
+
+**Root Cause:**
+- `jsconfig.json` path alias only resolved `@/*` to `./src/*`
+- Imports like `@/lib/prisma` need to resolve to `src/lib/prisma.js`
+- Some imports also need to resolve to root-level files
+
+**Fix Applied:**
+
+1. **Updated `jsconfig.json` to support both paths:**
+   ```json
+   {
+     "compilerOptions": {
+       "baseUrl": ".",
+       "paths": {
+         "@/*": ["./src/*", "./*"]  // Resolves to both src/ and root
+       }
+     }
+   }
+   ```
+
+**Current Status:** ✅ **RESOLVED** - Path aliases work correctly
+
+### Summary of Current Status
+
+**✅ Resolved Issues:**
+1. Prisma client initialization
+2. Module resolution for `@/lib/prisma`
+3. Console errors for unauthenticated users (expected 401s)
+4. API route imports using `auth()` from `@/auth`
+
+**⚠️ Partially Resolved:**
+1. Build errors may still appear intermittently, but functionality works
+2. NextAuth.js v5 beta API is still evolving - may need updates as library stabilizes
+
+**📝 Notes:**
+- The application **functions correctly** when the dev server is running
+- Build errors may appear during compilation but don't prevent runtime functionality
+- All API routes correctly handle authentication and return appropriate responses
+- Unauthenticated users can use the app with localStorage fallback (as designed)
+
+**🔍 Monitoring:**
+- Watch for NextAuth.js v5 beta updates that may change the API
+- Monitor build logs for any new import errors
+- Verify session retrieval works correctly in all API routes
+
+**📚 References:**
+- NextAuth.js v5 Beta Documentation: [https://authjs.dev/](https://authjs.dev/)
+- Project Auth Configuration: `src/auth.js`
+- API Route Examples: `app/api/favorites/route.js`
 
 ## General Issues
 

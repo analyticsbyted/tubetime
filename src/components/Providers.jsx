@@ -8,7 +8,10 @@ import { SessionProvider } from 'next-auth/react';
  */
 export default function Providers({ children }) {
   return (
-    <SessionProvider>
+    <SessionProvider
+      refetchInterval={0} // Disable automatic polling
+      refetchOnWindowFocus={true} // Refresh when window regains focus
+    >
       {children}
     </SessionProvider>
   );

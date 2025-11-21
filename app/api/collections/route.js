@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path as needed
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // Helper to get user ID from session
 async function getUserId() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
@@ -29,10 +28,11 @@ export async function GET(request) {
     });
     return NextResponse.json(collections);
   } catch (error) {
-    console.error('Error fetching collections:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error fetching collections:', error);
     return NextResponse.json({ error: 'Failed to fetch collections.' }, { status: 500 });
   }
 }
@@ -55,10 +55,11 @@ export async function POST(request) {
     });
     return NextResponse.json(newCollection, { status: 201 });
   } catch (error) {
-    console.error('Error creating collection:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error creating collection:', error);
     return NextResponse.json({ error: 'Failed to create collection.' }, { status: 500 });
   }
 }

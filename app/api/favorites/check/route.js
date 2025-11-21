@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // Helper to get user ID from session
 async function getUserId() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
@@ -41,10 +40,11 @@ export async function GET(request) {
       favorite: favorite || null,
     });
   } catch (error) {
-    console.error('Error checking favorite:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error checking favorite:', error);
     return NextResponse.json({ error: 'Failed to check favorite.' }, { status: 500 });
   }
 }

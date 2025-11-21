@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path as needed
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // Helper to get user ID from session
 async function getUserId() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
@@ -45,9 +44,12 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(fullCollection);
   } catch (error) {
-    console.error('Error fetching collection by ID:', error);
-    if (error.message === 'Unauthorized') return NextResponse.json({ error: error.message }, { status: 401 });
+    if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     if (error.message === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    console.error('Error fetching collection by ID:', error);
     return NextResponse.json({ error: 'Failed to fetch collection.' }, { status: 500 });
   }
 }
@@ -72,9 +74,12 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(updatedCollection);
   } catch (error) {
-    console.error('Error updating collection:', error);
-    if (error.message === 'Unauthorized') return NextResponse.json({ error: error.message }, { status: 401 });
+    if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     if (error.message === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    console.error('Error updating collection:', error);
     return NextResponse.json({ error: 'Failed to update collection.' }, { status: 500 });
   }
 }
@@ -93,11 +98,14 @@ export async function DELETE(request, { params }) {
 
     return new NextResponse(null, { status: 204 }); // No content on successful delete
   } catch (error) {
-    console.error('Error deleting collection:', error);
-    if (error.message === 'Unauthorized') return NextResponse.json({ error: error.message }, { status: 401 });
+    if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     if (error.message === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     // P2025 means record not found for delete
     if (error.code === 'P2025') return NextResponse.json({ error: 'Collection not found.' }, { status: 404 });
+    console.error('Error deleting collection:', error);
     return NextResponse.json({ error: 'Failed to delete collection.' }, { status: 500 });
   }
 }

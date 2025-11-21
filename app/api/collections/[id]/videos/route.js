@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust path as needed
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // Helper to get user ID from session
 async function getUserId() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
@@ -54,13 +53,16 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({ message: 'Video added to collection successfully.', video }, { status: 201 });
   } catch (error) {
-    console.error('Error adding video to collection:', error);
-    if (error.message === 'Unauthorized') return NextResponse.json({ error: error.message }, { status: 401 });
+    if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     if (error.message === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     // Handle case where video is already in collection (unique constraint violation)
     if (error.code === 'P2002' && error.meta?.target?.includes('videoId') && error.meta?.target?.includes('collectionId')) {
       return NextResponse.json({ error: 'Video is already in this collection.' }, { status: 409 });
     }
+    console.error('Error adding video to collection:', error);
     return NextResponse.json({ error: 'Failed to add video to collection.' }, { status: 500 });
   }
 }

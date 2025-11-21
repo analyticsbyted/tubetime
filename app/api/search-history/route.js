@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // Helper to get user ID from session
 async function getUserId() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
@@ -47,10 +46,11 @@ export async function GET(request) {
     });
     return NextResponse.json(history);
   } catch (error) {
-    console.error('Error fetching search history:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error fetching search history:', error);
     return NextResponse.json({ error: 'Failed to fetch search history.' }, { status: 500 });
   }
 }
@@ -108,10 +108,11 @@ export async function POST(request) {
 
     return NextResponse.json(newEntry, { status: 201 }); // Return 201 Created for new entry
   } catch (error) {
-    console.error('Error saving search history:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error saving search history:', error);
     return NextResponse.json({ error: 'Failed to save search history.' }, { status: 500 });
   }
 }
@@ -125,10 +126,11 @@ export async function DELETE(request) {
     });
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error('Error clearing search history:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error clearing search history:', error);
     return NextResponse.json({ error: 'Failed to clear search history.' }, { status: 500 });
   }
 }

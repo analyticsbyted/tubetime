@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // Helper to get user ID from session
 async function getUserId() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
@@ -32,10 +31,11 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(favorite);
   } catch (error) {
-    console.error('Error fetching favorite:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error fetching favorite:', error);
     return NextResponse.json({ error: 'Failed to fetch favorite.' }, { status: 500 });
   }
 }
@@ -82,10 +82,11 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('Error updating favorite:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error updating favorite:', error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Favorite not found.' }, { status: 404 });
     }
@@ -118,10 +119,11 @@ export async function DELETE(request, { params }) {
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error('Error deleting favorite:', error);
     if (error.message === 'Unauthorized') {
+      // Expected for unauthenticated users - don't log as error
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    console.error('Error deleting favorite:', error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Favorite not found.' }, { status: 404 });
     }

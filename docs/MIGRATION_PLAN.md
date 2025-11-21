@@ -188,7 +188,7 @@ This document outlines the strategy for migrating client-side localStorage utili
 
 **Every API route should:**
 ```javascript
-import { getServerSession } from "next-auth/next"
+import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 
 export async function GET(request) {

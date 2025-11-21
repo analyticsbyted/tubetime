@@ -610,6 +610,6 @@ Key notes:
 
 - `docs/` centralizes every Markdown reference to keep the repo root focused on code. Link to files as `./docs/<file>.md`.
 - `tests/` houses all Vitest specs, separating test code from runtime bundles. Update Vitest globs as new suites are added.
-- Generated Prisma client artifacts live under `src/generated/prisma/`; regenerate via `npx prisma generate`.
+- Prisma client artifacts are generated via `npx prisma generate` (default output in `node_modules/@prisma/client`).
 
 This structure should be updated whenever a new top-level concern is introduced (e.g., e2e tests folder or additional documentation sets).

@@ -24,6 +24,23 @@ function AuthButton() {
     }
   }, [showMenu]);
 
+  // Check for OAuth callback and refresh session
+  useEffect(() => {
+    // If we're on a page that might be returning from OAuth, refresh session
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      // Check if we have callback parameters or if we just came back from OAuth
+      if (urlParams.has('callbackUrl') || window.location.pathname.includes('callback')) {
+        // Small delay to ensure OAuth callback has completed
+        const timer = setTimeout(() => {
+          // Force a session check by triggering a window focus event
+          window.dispatchEvent(new Event('focus'));
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
   if (status === 'loading') {
     return <div className="w-24 h-8 bg-zinc-800 rounded-full animate-pulse" />;
   }
@@ -65,8 +82,8 @@ function AuthButton() {
           <div className="py-1">
             <button
               onClick={() => {
-                signIn('google');
                 setShowMenu(false);
+                signIn('google', { callbackUrl: window.location.href });
               }}
               className="w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-3"
             >
@@ -92,8 +109,8 @@ function AuthButton() {
             </button>
             <button
               onClick={() => {
-                signIn('github');
                 setShowMenu(false);
+                signIn('github', { callbackUrl: window.location.href });
               }}
               className="w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-3"
             >

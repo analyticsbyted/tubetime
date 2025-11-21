@@ -5,6 +5,18 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.4] - 2025-11-20
+
+### Changed
+
+- Made the "add to favorites" star icon in the Top Channels list always visible, instead of only on hover.
+- Centered toast notifications for a more integrated UI feel.
+- Adjusted the Favorites sidebar to be positioned relative to the main content area, rather than the viewport.
+
+### Fixed
+
+- Fixed an issue where the Favorites sidebar would not be completely hidden when closed.
+
 ## [4.5.3] - 2025-11-20
 
 ### Fixed
