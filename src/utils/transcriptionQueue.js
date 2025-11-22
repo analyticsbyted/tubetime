@@ -30,10 +30,11 @@ export const getQueue = async () => {
  * Adds video IDs to the transcription queue (database-only)
  * @param {string[]|Set<string>} videoIds - Array or Set of video IDs to add
  * @param {number} [priority=0] - Priority level (higher = higher priority)
+ * @param {Array} [videoMetadata] - Optional array of video metadata objects
  * @returns {Promise<{success: boolean, added: number, skipped: number, message: string}>}
  * @throws {Error} If not authenticated or operation fails
  */
-export const addToQueue = async (videoIds, priority = 0) => {
+export const addToQueue = async (videoIds, priority = 0, videoMetadata = []) => {
   // Convert input to array if it's a Set
   const idsToAdd = Array.isArray(videoIds) ? videoIds : Array.from(videoIds);
   
@@ -59,7 +60,7 @@ export const addToQueue = async (videoIds, priority = 0) => {
   }
 
   try {
-    const result = await transcriptionQueueService.addToQueue(validIds, priority);
+    const result = await transcriptionQueueService.addToQueue(validIds, priority, videoMetadata);
     return {
       success: true,
       added: result.added || 0,

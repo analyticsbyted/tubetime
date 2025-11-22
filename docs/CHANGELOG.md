@@ -5,6 +5,50 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.9.0] - 2025-01-XX
+
+### Added
+
+- **Automated Transcription Workflow:**
+  - Auto-trigger transcription worker after queuing videos
+  - Real-time progress panel with status indicators (pending, processing, completed, failed)
+  - Time estimates based on video duration (~1 min processing per min of video)
+  - Auto-open transcript modal when transcription completes
+  - User-facing API route (`/api/transcription-queue/process`) for authenticated processing
+  - Polling hook (`useTranscriptionQueue`) for real-time queue status updates
+  - Graceful fallback if worker is not configured (no errors shown to user)
+
+### Changed
+
+- **Transcription Queue UX:**
+  - Queueing videos now automatically triggers processing
+  - Progress panel appears in top-right corner showing all active queue items
+  - Status updates every 5 seconds automatically
+  - Improved toast messages with processing status
+
+- **Build Improvements:**
+  - Made `transcriptionService.js` environment variable checks lazy (only checked when functions are called)
+  - Fixes build errors when `TRANSCRIPTION_WORKER_URL` is not configured
+
+### Technical
+
+- **New Components:**
+  - `TranscriptionProgress.jsx`: Visual progress panel with status indicators and time estimates
+  - `useTranscriptionQueue.js`: Polling hook for queue status (5-second intervals)
+
+- **New Services:**
+  - `transcriptionWorkerService.js`: Client-side service for triggering worker
+  - `/api/transcription-queue/process`: User-facing API route (requires authentication)
+
+- **Updated Components:**
+  - `app/page.jsx`: Integrated auto-trigger, progress panel, and auto-open logic
+  - `src/services/transcriptionService.js`: Lazy environment variable validation
+
+### Documentation
+
+- Created `AUTOMATED_TRANSCRIPTION_UX.md`: Comprehensive guide to the automated workflow
+- Created `TRANSCRIPTION_WORKFLOW.md`: Manual workflow guide (for reference/fallback)
+
 ## [4.8.0] - 2025-01-XX
 
 ### Added

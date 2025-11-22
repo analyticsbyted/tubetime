@@ -14,8 +14,9 @@ TubeTime is a historical YouTube search engine that allows users to search, cura
 -   **Collections:** Save selected videos into named collections, persisted in the database.
 -   **Export:** Export video data to JSON or CSV.
 -   **Search Statistics:** Dashboard with total results, channel distribution, and other analytics.
--   **Transcription Queue:** Queue videos for transcription with status tracking (pending, processing, completed, failed).
+-   **Transcription Queue:** Queue videos for transcription with automated processing, real-time progress tracking, and status indicators (pending, processing, completed, failed).
 -   **Transcript Viewing:** View video transcripts with search, highlighting, copy, and export functionality.
+-   **Automated Transcription:** Automatic worker triggering, real-time progress panel, time estimates, and auto-open transcripts when ready.
 
 #### User & Data Persistence
 -   **Authentication:** User accounts and session management powered by NextAuth.js.

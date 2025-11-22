@@ -24,6 +24,9 @@ import { parseISODurationToSeconds, MAX_TRANSCRIPTION_DURATION_SECONDS } from '.
 import { toast } from 'sonner';
 import { getDatePreset } from '../src/utils/datePresets';
 import { checkTranscriptStatus } from '../src/services/transcriptService';
+import { useTranscriptionQueue } from '../src/hooks/useTranscriptionQueue';
+import { triggerWorker } from '../src/services/transcriptionWorkerService';
+import TranscriptionProgress from '../src/components/TranscriptionProgress';
 
 function HomePageContent() {
   // Clean up old localStorage data on mount (one-time migration cleanup)
@@ -82,6 +85,18 @@ function HomePageContent() {
   
   // Transcript statuses for videos (Map of videoId -> status)
   const [transcriptStatuses, setTranscriptStatuses] = useState(new Map());
+  
+  // Transcription queue monitoring (polls every 5 seconds)
+  const { queue: transcriptionQueue, refetch: refetchQueue } = useTranscriptionQueue({
+    enabled: true,
+    pollInterval: 5000,
+  });
+  
+  // Track which videos we just queued to auto-open when ready
+  const [recentlyQueuedVideos, setRecentlyQueuedVideos] = useState(new Set());
+  
+  // Auto-trigger worker when new items are queued
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   
   // Check transcript statuses for current videos
   useEffect(() => {
@@ -269,8 +284,35 @@ function HomePageContent() {
 
       if (result.success) {
         console.log('Queued for transcription:', selectedIds);
-        toast.success(result.message);
-        clearSelection();
+        
+        // Show appropriate message based on result
+        if (result.added === 0) {
+          // All videos were skipped - show error
+          toast.error(
+            result.message || 
+            'No videos were added. They may already be in the queue, missing duration metadata, or exceed the 15-minute limit.'
+          );
+        } else if (result.skipped > 0) {
+          // Some added, some skipped - show warning
+          toast.warning(result.message);
+        } else {
+          // All added successfully
+          toast.success(`${result.added} video${result.added !== 1 ? 's' : ''} queued. Processing will begin shortly...`);
+        }
+        
+        // Track recently queued videos for auto-opening transcripts
+        if (result.added > 0) {
+          setRecentlyQueuedVideos(prev => {
+            const newSet = new Set(prev);
+            selectedIds.forEach(id => newSet.add(id));
+            return newSet;
+          });
+          
+          // Auto-trigger worker to start processing
+          triggerWorkerAutomatically();
+          
+          clearSelection();
+        }
       } else {
         toast.error(result.message);
       }
@@ -279,6 +321,49 @@ function HomePageContent() {
       toast.error(error.message || 'Failed to queue videos for transcription.');
     }
   };
+
+  // Auto-trigger worker to process queue
+  const triggerWorkerAutomatically = async () => {
+    if (isProcessingQueue) return; // Prevent concurrent triggers
+    
+    setIsProcessingQueue(true);
+    try {
+      await triggerWorker({ maxItems: 5 });
+      // Refetch queue to get updated status
+      await refetchQueue();
+    } catch (error) {
+      // Silently handle errors - worker might not be configured
+      // Queue will still be processed by cron job or manual trigger
+      console.log('Auto-trigger worker failed (this is OK if worker is not configured):', error.message);
+    } finally {
+      setIsProcessingQueue(false);
+    }
+  };
+
+  // Auto-open transcript when a recently queued video completes
+  useEffect(() => {
+    if (recentlyQueuedVideos.size === 0) return;
+    if (!transcriptionQueue?.items) return;
+
+    const completedItems = transcriptionQueue.items.filter(
+      item => item.status === 'completed' && recentlyQueuedVideos.has(item.videoId)
+    );
+
+    if (completedItems.length > 0) {
+      // Open the first completed transcript
+      const firstCompleted = completedItems[0];
+      setTranscriptModalVideoId(firstCompleted.videoId);
+      
+      // Remove from tracking set
+      setRecentlyQueuedVideos(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(firstCompleted.videoId);
+        return newSet;
+      });
+      
+      toast.success(`Transcript ready for "${firstCompleted.video?.title || 'video'}"!`);
+    }
+  }, [transcriptionQueue, recentlyQueuedVideos]);
 
   // Handle history selection (now supports full search parameters)
   const handleSelectHistory = (query, startDate, endDate, channelName, duration, language, order, maxResults) => {
@@ -356,6 +441,14 @@ function HomePageContent() {
           isOpen={!!transcriptModalVideoId}
           onClose={handleCloseTranscript}
           video={sortedVideos.find(v => v.id === transcriptModalVideoId)}
+        />
+        <TranscriptionProgress
+          queueItems={transcriptionQueue?.items || []}
+          onViewTranscript={handleViewTranscript}
+          onDismiss={() => {
+            // Optionally dismiss the progress panel
+            // For now, we'll keep it visible when there are active items
+          }}
         />
         <EnhancedSearchBar 
           onSearch={handleSearch} 

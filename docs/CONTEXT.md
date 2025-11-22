@@ -732,9 +732,56 @@ This structure should be updated whenever a new top-level concern is introduced 
 - ✅ Updated `CHANGELOG.md` with v4.8.0 release notes
 - ✅ Updated `MIGRATION_PLAN.md` with Phase 7 status
 
+## Automated Transcription Workflow (v4.9.0) - ✅ COMPLETE
+
+**Implementation Summary:**
+- ✅ Auto-trigger transcription worker after queuing videos
+- ✅ Real-time progress panel with status indicators and time estimates
+- ✅ Auto-open transcript modal when transcription completes
+- ✅ User-facing API route for authenticated processing
+- ✅ Polling hook for real-time queue status updates
+- ✅ Graceful fallback if worker is not configured
+
+**Key Features:**
+- **Automatic Processing:** Worker triggers automatically after queuing (no manual intervention)
+- **Real-Time Progress:** Fixed top-right panel showing queue status with:
+  - Pending items (with time estimates)
+  - Processing items (with remaining time)
+  - Completed items (with "View Transcript" button)
+  - Failed items (with error messages)
+- **Time Estimates:** Based on video duration (~1 min processing per min of video)
+- **Auto-Open Transcripts:** Modal opens automatically when transcription completes
+- **Status Updates:** Polls queue every 5 seconds for real-time updates
+
+**Technical Details:**
+- Created `TranscriptionProgress.jsx` component for visual progress display
+- Created `useTranscriptionQueue.js` hook for polling queue status
+- Created `transcriptionWorkerService.js` client-side service
+- Created `/api/transcription-queue/process` user-facing API route
+- Updated `app/page.jsx` with auto-trigger, progress panel, and auto-open logic
+- Made `transcriptionService.js` environment checks lazy to fix build errors
+
+**User Experience:**
+1. User selects videos and clicks "Queue for Transcription"
+2. System automatically triggers worker to start processing
+3. Progress panel appears showing real-time status
+4. When transcription completes, transcript modal opens automatically
+5. User can immediately view, search, copy, or export transcript
+
+**Fallback Behavior:**
+- If worker is not configured, videos remain in queue
+- Progress panel still shows status
+- No errors shown to user (graceful degradation)
+- Cron job or manual trigger can process later
+
+**Documentation:**
+- ✅ Created `AUTOMATED_TRANSCRIPTION_UX.md`: Comprehensive workflow guide
+- ✅ Created `TRANSCRIPTION_WORKFLOW.md`: Manual workflow guide (for reference)
+
 ## Open Topics / Future Work
 1. Phase 6 implementation (Transcription Worker MVP) - ✅ COMPLETE
 2. Phase 7 planning (Display transcripts UI/UX) - ✅ COMPLETE
+3. Automated Transcription Workflow - ✅ COMPLETE
 3. Transcription feature manual testing checklist
 4. Observability & performance monitoring post-clean cutover
 5. Break 6: Caching & State Management (React Query integration)

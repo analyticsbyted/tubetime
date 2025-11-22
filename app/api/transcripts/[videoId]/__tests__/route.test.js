@@ -36,7 +36,7 @@ describe('GET /api/transcripts/[videoId]', () => {
       auth.mockResolvedValueOnce(null);
 
       const request = new MockRequest('http://localhost:3000/api/transcripts/video-123');
-      const response = await GET(request, { params: { videoId: 'video-123' } });
+      const response = await GET(request, { params: Promise.resolve({ videoId: 'video-123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(401);
@@ -47,7 +47,7 @@ describe('GET /api/transcripts/[videoId]', () => {
       auth.mockResolvedValueOnce({ user: {} });
 
       const request = new MockRequest('http://localhost:3000/api/transcripts/video-123');
-      const response = await GET(request, { params: { videoId: 'video-123' } });
+      const response = await GET(request, { params: Promise.resolve({ videoId: 'video-123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(401);
@@ -98,7 +98,7 @@ describe('GET /api/transcripts/[videoId]', () => {
       mockPrisma.transcript.findUnique.mockResolvedValueOnce(mockTranscript);
 
       const request = new MockRequest('http://localhost:3000/api/transcripts/video-123');
-      const response = await GET(request, { params: { videoId: 'video-123' } });
+      const response = await GET(request, { params: Promise.resolve({ videoId: 'video-123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -131,7 +131,7 @@ describe('GET /api/transcripts/[videoId]', () => {
       mockPrisma.transcript.findUnique.mockResolvedValueOnce(null);
 
       const request = new MockRequest('http://localhost:3000/api/transcripts/video-123');
-      const response = await GET(request, { params: { videoId: 'video-123' } });
+      const response = await GET(request, { params: Promise.resolve({ videoId: 'video-123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(404);
@@ -147,7 +147,7 @@ describe('GET /api/transcripts/[videoId]', () => {
       );
 
       const request = new MockRequest('http://localhost:3000/api/transcripts/video-123');
-      const response = await GET(request, { params: { videoId: 'video-123' } });
+      const response = await GET(request, { params: Promise.resolve({ videoId: 'video-123' }) });
       const data = await response.json();
 
       expect(response.status).toBe(500);

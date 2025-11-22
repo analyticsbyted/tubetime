@@ -15,7 +15,8 @@ async function getUserId() {
 export async function GET(request, { params }) {
   try {
     const userId = await getUserId();
-    const { videoId } = params;
+    // In Next.js 15+, params is a Promise and must be awaited
+    const { videoId } = await params;
 
     if (!videoId) {
       return NextResponse.json(

@@ -2,15 +2,19 @@
 
 import { TranscriptionServiceError } from '@/utils/errors';
 
-const WORKER_URL = process.env.TRANSCRIPTION_WORKER_URL?.replace(/\/$/, '');
-const WORKER_SECRET = process.env.TRANSCRIPTION_WORKER_SECRET;
+function getWorkerConfig() {
+  const WORKER_URL = process.env.TRANSCRIPTION_WORKER_URL?.replace(/\/$/, '');
+  const WORKER_SECRET = process.env.TRANSCRIPTION_WORKER_SECRET;
 
-if (!WORKER_URL) {
-  throw new Error('TRANSCRIPTION_WORKER_URL is not configured.');
-}
+  if (!WORKER_URL) {
+    throw new Error('TRANSCRIPTION_WORKER_URL is not configured.');
+  }
 
-if (!WORKER_SECRET) {
-  throw new Error('TRANSCRIPTION_WORKER_SECRET is not configured.');
+  if (!WORKER_SECRET) {
+    throw new Error('TRANSCRIPTION_WORKER_SECRET is not configured.');
+  }
+
+  return { WORKER_URL, WORKER_SECRET };
 }
 
 function withAbortController(timeoutMs) {
@@ -33,6 +37,7 @@ export async function transcribeVideo({
     });
   }
 
+  const { WORKER_URL, WORKER_SECRET } = getWorkerConfig();
   const { controller, dispose } = withAbortController(timeoutMs);
 
   try {
@@ -94,6 +99,7 @@ export async function transcribeVideo({
 }
 
 export async function getWorkerHealth(timeoutMs = 10_000) {
+  const { WORKER_URL } = getWorkerConfig();
   const { controller, dispose } = withAbortController(timeoutMs);
   try {
     const response = await fetch(WORKER_URL, {

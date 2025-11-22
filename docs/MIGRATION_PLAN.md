@@ -2,7 +2,7 @@
 
 This document outlines the strategy for migrating client-side localStorage utilities to authenticated, database-backed API routes.
 
-**Status:** ✅ **MIGRATION COMPLETE** - All localStorage utilities have been migrated to database-only operations (v4.7.0). Clean cutover completed. Phase 7 (Display Transcripts) complete (v4.8.0).
+**Status:** ✅ **MIGRATION COMPLETE** - All localStorage utilities have been migrated to database-only operations (v4.7.0). Clean cutover completed. Phase 7 (Display Transcripts) complete (v4.8.0). Automated Transcription Workflow complete (v4.9.0).
 
 ## Current State Analysis
 
@@ -475,6 +475,29 @@ POST /api/user-data
 - ✅ **Responsive Design:** optimized for mobile and desktop
 - ✅ **Focus Management:** Focus trapping in modals, restoration on close
 - ✅ **Screen Reader Support:** ARIA labels, live regions for search results
+
+## Automated Transcription Workflow Status: ✅ COMPLETE
+
+**Automated Transcription Workflow (v4.9.0)**
+
+**User Experience Enhancements:**
+- ✅ Auto-trigger transcription worker after queuing videos
+- ✅ Real-time progress panel with status indicators (pending, processing, completed, failed)
+- ✅ Time estimates based on video duration (~1 min processing per min of video)
+- ✅ Auto-open transcript modal when transcription completes
+- ✅ Graceful fallback if worker is not configured (no errors shown to user)
+
+**Technical Implementation:**
+- ✅ Created `TranscriptionProgress.jsx` component for visual progress display
+- ✅ Created `useTranscriptionQueue.js` hook for polling queue status (5-second intervals)
+- ✅ Created `transcriptionWorkerService.js` client-side service
+- ✅ Created `/api/transcription-queue/process` user-facing API route (requires authentication)
+- ✅ Updated `app/page.jsx` with auto-trigger, progress panel, and auto-open logic
+- ✅ Made `transcriptionService.js` environment checks lazy to fix build errors
+
+**Documentation:**
+- ✅ Created `AUTOMATED_TRANSCRIPTION_UX.md`: Comprehensive workflow guide
+- ✅ Created `TRANSCRIPTION_WORKFLOW.md`: Manual workflow guide (for reference/fallback)
 - ✅ **Keyboard Navigation:** Full keyboard support including shortcuts (Enter/Shift+Enter for search)
 
 **Documentation:**
