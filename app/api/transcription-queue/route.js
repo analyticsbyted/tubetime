@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { parseISODurationToSeconds, MAX_TRANSCRIPTION_DURATION_SECONDS } from '@/utils/duration';
 
 // Helper to get user ID from session
 async function getUserId() {
@@ -69,11 +70,24 @@ export async function GET(request) {
   }
 }
 
+function getDurationSecondsFromMetadata(metadata) {
+  if (!metadata) {
+    return null;
+  }
+  if (
+    typeof metadata.durationSeconds === 'number' &&
+    Number.isFinite(metadata.durationSeconds)
+  ) {
+    return metadata.durationSeconds;
+  }
+  return parseISODurationToSeconds(metadata.duration);
+}
+
 // POST /api/transcription-queue - Add videos to queue
 export async function POST(request) {
   try {
     const userId = await getUserId();
-    const { videoIds, priority = 0 } = await request.json();
+    const { videoIds, priority = 0, videos: incomingVideos = [] } = await request.json();
 
     // Validate input
     if (!videoIds || !Array.isArray(videoIds) || videoIds.length === 0) {
@@ -91,38 +105,76 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No valid video IDs provided.' }, { status: 400 });
     }
 
+    const metadataMap = new Map();
+    incomingVideos.forEach((video) => {
+      if (video?.id && typeof video.id === 'string') {
+        metadataMap.set(video.id.trim(), video);
+      }
+    });
+
     // Use transaction for atomic batch operation
     const result = await prisma.$transaction(async (tx) => {
       let added = 0;
       let skipped = 0;
+      let skippedDuplicates = 0;
+      const skippedDuration = [];
+      const skippedMissingDuration = [];
       const createdItems = [];
 
       for (const videoId of validVideoIds) {
+        const trimmedVideoId = videoId.trim();
+
         // Check if already in queue (unique constraint: userId + videoId)
         const existing = await tx.transcriptionQueue.findFirst({
           where: {
             userId,
-            videoId: videoId.trim(),
+            videoId: trimmedVideoId,
           },
         });
 
         if (existing) {
           skipped++;
+          skippedDuplicates++;
+          continue;
+        }
+
+        const videoMetadata = metadataMap.get(trimmedVideoId);
+        const durationSeconds = getDurationSecondsFromMetadata(videoMetadata);
+
+        if (durationSeconds === null) {
+          skipped++;
+          skippedMissingDuration.push(trimmedVideoId);
+          continue;
+        }
+
+        if (durationSeconds > MAX_TRANSCRIPTION_DURATION_SECONDS) {
+          skipped++;
+          skippedDuration.push({
+            videoId: trimmedVideoId,
+            durationSeconds,
+          });
           continue;
         }
 
         // Upsert video (create if not exists, update if exists)
-        // Note: We need basic video data - in a real scenario, you might want to fetch from YouTube API
-        // For now, we'll create a minimal video record
         await tx.video.upsert({
-          where: { id: videoId.trim() },
-          update: {}, // Update nothing if exists
+          where: { id: trimmedVideoId },
+          update: {
+            title: videoMetadata?.title || undefined,
+            channelTitle: videoMetadata?.channelTitle || undefined,
+            thumbnailUrl: videoMetadata?.thumbnailUrl || undefined,
+            publishedAt: videoMetadata?.publishedAt
+              ? new Date(videoMetadata.publishedAt)
+              : undefined,
+          },
           create: {
-            id: videoId.trim(),
-            title: `Video ${videoId.trim()}`, // Placeholder - should be fetched from YouTube API
-            channelTitle: 'Unknown',
-            publishedAt: new Date(),
-            thumbnailUrl: '',
+            id: trimmedVideoId,
+            title: videoMetadata?.title || `Video ${trimmedVideoId}`,
+            channelTitle: videoMetadata?.channelTitle || 'Unknown',
+            publishedAt: videoMetadata?.publishedAt
+              ? new Date(videoMetadata.publishedAt)
+              : new Date(),
+            thumbnailUrl: videoMetadata?.thumbnailUrl || '',
           },
         });
 
@@ -130,7 +182,7 @@ export async function POST(request) {
         const queueItem = await tx.transcriptionQueue.create({
           data: {
             userId,
-            videoId: videoId.trim(),
+            videoId: trimmedVideoId,
             status: 'pending',
             priority,
           },
@@ -140,13 +192,44 @@ export async function POST(request) {
         createdItems.push(queueItem);
       }
 
-      return { added, skipped, createdItems };
+      return {
+        added,
+        skipped,
+        skippedDuplicates,
+        skippedDuration,
+        skippedMissingDuration,
+        createdItems,
+      };
     });
+
+    const warningMessages = [];
+
+    if (result.skippedDuplicates > 0) {
+      warningMessages.push(
+        `${result.skippedDuplicates} video${result.skippedDuplicates !== 1 ? 's' : ''} already in queue.`,
+      );
+    }
+
+    if (result.skippedDuration.length > 0) {
+      warningMessages.push(
+        `${result.skippedDuration.length} video${result.skippedDuration.length !== 1 ? 's' : ''} exceeded the 15 minute limit.`,
+      );
+    }
+
+    if (result.skippedMissingDuration.length > 0) {
+      warningMessages.push(
+        `${result.skippedMissingDuration.length} video${result.skippedMissingDuration.length !== 1 ? 's' : ''} missing duration metadata.`,
+      );
+    }
+
+    const baseMessage = `Added ${result.added} video${result.added !== 1 ? 's' : ''} to transcription queue.`;
+    const message =
+      warningMessages.length > 0 ? `${baseMessage} ${warningMessages.join(' ')}` : baseMessage;
 
     return NextResponse.json({
       added: result.added,
       skipped: result.skipped,
-      message: `Added ${result.added} video${result.added !== 1 ? 's' : ''} to transcription queue.${result.skipped > 0 ? ` ${result.skipped} already in queue.` : ''}`,
+      message,
     }, { status: 201 });
   } catch (error) {
     if (error.message === 'Unauthorized') {

@@ -52,7 +52,7 @@ export const getQueue = async (options = {}) => {
  * @param {number} [priority=0] - Priority level (higher = higher priority)
  * @returns {Promise<Object>} Result object with added, skipped, and message
  */
-export const addToQueue = async (videoIds, priority = 0) => {
+export const addToQueue = async (videoIds, priority = 0, videos = []) => {
   try {
     if (!Array.isArray(videoIds) || videoIds.length === 0) {
       throw new Error('videoIds must be a non-empty array.');
@@ -61,7 +61,7 @@ export const addToQueue = async (videoIds, priority = 0) => {
     const response = await fetch('/api/transcription-queue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoIds, priority }),
+      body: JSON.stringify({ videoIds, priority, videos }),
     });
 
     if (!response.ok) {
@@ -70,6 +70,10 @@ export const addToQueue = async (videoIds, priority = 0) => {
       }
       if (response.status === 409) {
         throw new Error('One or more videos are already in the queue.');
+      }
+      if (response.status === 400) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Invalid request.');
       }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Failed to add videos to transcription queue.');

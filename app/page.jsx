@@ -19,6 +19,7 @@ import { useVideoSearch } from '../src/hooks/useVideoSearch';
 import { useVideoSort } from '../src/hooks/useVideoSort';
 import { useSelection } from '../src/hooks/useSelection';
 import { addToQueue } from '../src/utils/transcriptionQueue';
+import { parseISODurationToSeconds, MAX_TRANSCRIPTION_DURATION_SECONDS } from '../src/utils/duration';
 import { toast } from 'sonner';
 import { getDatePreset } from '../src/utils/datePresets';
 
@@ -145,14 +146,68 @@ function HomePageContent() {
   // Handle queue for transcription
   const handleQueue = async () => {
     const selectedIds = Array.from(selection);
+    const selectedVideos = getSelectedVideos();
 
     if (selectedIds.length === 0) {
       toast.error('No videos selected.');
       return;
     }
 
+    if (selectedVideos.length === 0) {
+      toast.error('Unable to retrieve selected video metadata.');
+      return;
+    }
+
+    const missingDuration = [];
+    const tooLong = [];
+
+    selectedVideos.forEach((video) => {
+      const seconds = parseISODurationToSeconds(video.duration);
+      if (seconds === null) {
+        missingDuration.push(video);
+        return;
+      }
+      if (seconds > MAX_TRANSCRIPTION_DURATION_SECONDS) {
+        tooLong.push(video);
+      }
+    });
+
+    if (missingDuration.length > 0) {
+      toast.error(
+        `Unable to queue ${missingDuration.length} video${
+          missingDuration.length > 1 ? 's' : ''
+        } because YouTube did not provide duration metadata yet.`,
+      );
+      return;
+    }
+
+    if (tooLong.length > 0) {
+      const previewTitles = tooLong
+        .slice(0, 3)
+        .map((video) => `"${video.title}"`)
+        .join(', ');
+      toast.error(
+        `${tooLong.length} video${
+          tooLong.length > 1 ? 's' : ''
+        } exceed the 15 minute transcription limit. ${previewTitles}${
+          tooLong.length > 3 ? ', ...' : ''
+        }`,
+      );
+      return;
+    }
+
+    const metadataPayload = selectedVideos.map((video) => ({
+      id: video.id,
+      title: video.title,
+      channelTitle: video.channelTitle,
+      publishedAt: video.publishedAt,
+      thumbnailUrl: video.thumbnailUrl,
+      duration: video.duration,
+      durationSeconds: parseISODurationToSeconds(video.duration),
+    }));
+
     try {
-      const result = await addToQueue(selectedIds);
+      const result = await addToQueue(selectedIds, 0, metadataPayload);
 
       if (result.success) {
         console.log('Queued for transcription:', selectedIds);

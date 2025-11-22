@@ -84,6 +84,7 @@ model Video {
 
   collections        VideosInCollections[] // Many-to-many relation
   transcriptionQueue TranscriptionQueue[] // Videos in transcription queue
+  transcript         Transcript?
 }
 
 // Join table for the many-to-many relationship between Videos and Collections
@@ -138,6 +139,8 @@ model TranscriptionQueue {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   completedAt  DateTime?
+  processingStartedAt DateTime?
+  retryCount   Int       @default(0)
   userId       String
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   video        Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
@@ -145,4 +148,19 @@ model TranscriptionQueue {
   @@unique([userId, videoId])
   @@index([userId, status])
   @@index([userId, createdAt])
+}
+
+model Transcript {
+  id                 String   @id @default(cuid())
+  videoId            String   @unique
+  content            String   @db.Text
+  segments           Json?
+  language           String?
+  confidence         Float?
+  duration           Int?
+  wordCount          Int?
+  processingDuration Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  video              Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 }

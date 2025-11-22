@@ -84,13 +84,19 @@
 ```javascript
 // In transcriptionService.js
 function calculateTimeout(videoDuration) {
-  if (!videoDuration) return 300; // Default 5 minutes
+  // Default 5 minutes for safety, or if duration is unknown
+  if (!videoDuration) return 300; 
   
   const durationMinutes = videoDuration / 60;
-  if (durationMinutes < 5) return 120;
-  if (durationMinutes < 15) return 300;
-  if (durationMinutes < 30) return 600;
-  return 900; // 15 minutes max
+  
+  // 3 minutes for short videos (< 5 mins)
+  if (durationMinutes < 5) return 180; 
+  
+  // 5 minutes for all other videos up to the 15-minute limit
+  if (durationMinutes <= 15) return 300; 
+  
+  // A fallback, though this state should not be reached if we validate length
+  return 300; 
 }
 ```
 
@@ -252,23 +258,23 @@ for (const chunk of chunks) {
 **Question:** Should we limit video length for transcription?
 
 **Recommendations:**
-- **Initial Limit: 30 minutes** (can be configurable)
+- **Initial Limit: 15 minutes** (can be configurable)
 - **Reason:** 
   - Longer videos = longer processing time
   - Higher chance of timeout
   - More resource-intensive
-- **UI:** Show warning for videos > 30 minutes
+- **UI:** Show warning for videos > 15 minutes
 - **Database:** Store video duration when queuing, validate before processing
 
 **Implementation:**
 ```javascript
 // In queue validation
-const MAX_VIDEO_DURATION = 30 * 60; // 30 minutes in seconds
+const MAX_VIDEO_DURATION = 15 * 60; // 15 minutes in seconds
 
 if (videoDuration > MAX_VIDEO_DURATION) {
   return {
     success: false,
-    error: `Videos longer than 30 minutes cannot be transcribed. This video is ${formatDuration(videoDuration)}.`
+    error: `Videos longer than 15 minutes cannot be transcribed. This video is ${formatDuration(videoDuration)}.`
   };
 }
 ```
@@ -452,7 +458,7 @@ If Hugging Face Spaces supports webhooks, use them instead of polling:
 - [ ] Timeout strategy (300 seconds default, progressive) approved
 - [ ] UI failure handling approach approved
 - [ ] Concurrent processing strategy (start with 1) approved
-- [ ] Video length limits (30 minutes) approved
+- [ ] Video length limits (15 minutes) approved
 - [ ] Transcript caching strategy approved
 - [ ] Cron job implementation method selected
 - [ ] Security approach (secret token) approved
@@ -480,7 +486,7 @@ Based on your review, I have updated the implementation plan. Here is a summary 
 
 *   **Concurrency Limit**: The worker will be configured to process only **1 job at a time** to safely operate within the resource limits of the free hosting tier.
 
-*   **Video Length Limit**: A hard limit of **30 minutes** for video duration will be enforced. The system will prevent users from queueing videos that exceed this length.
+*   **Video Length Limit**: A hard limit of **15 minutes** for video duration will be enforced. The system will prevent users from queueing videos that exceed this length.
 
 *   **Transcript Caching**: Before processing any video, I will first check if a transcript for that `videoId` already exists in the database. If found, it will be reused immediately, avoiding redundant work.
 
@@ -512,7 +518,7 @@ The path forward is clear. Upon approval from the team, I will begin with the fi
    - Prevents rate limiting issues
    - Can be increased later if needed
 
-3. **✅ Video Length Limit (30 minutes)**
+3. **✅ Video Length Limit (15 minutes)**
    - Reasonable limit for MVP
    - Prevents timeout issues
    - Can be made configurable later
@@ -561,7 +567,7 @@ Implement validation at **two points**:
 
 1. **Frontend (User Experience):**
    - Check video duration when user selects "Queue for Transcription"
-   - Show immediate error if > 30 minutes
+   - Show immediate error if > 15 minutes
    - Prevent queueing invalid videos
 
 2. **Backend (Safety):**
@@ -698,6 +704,43 @@ Ensure status transitions are validated:
    - Test cron execution
    - Monitor first few runs
 
+### Milestones & Review Gates
+
+To keep the implementation manageable (and allow the team to validate each chunk), Phase 6 will pause for review at the following checkpoints:
+
+1. **Schema & Contracts (Break 1)**
+   - Deliverables: Prisma migration adding `Transcript`, `retryCount`, `processingStartedAt`; updated schema docs.
+   - Review focus: schema correctness, migration safety, data model alignment.
+
+2. **Python Worker (Break 2)**
+   - Deliverables: Hugging Face Space repository/config, FastAPI endpoint, sample transcription run documented.
+   - Review focus: deployment viability on free tier, security (secret token), transcription output quality.
+
+3. **Next.js Service + Worker Endpoint (Break 3)**
+   - Deliverables: `transcriptionService.js`, `/api/transcription-worker` routes, transcript caching logic.
+   - Review focus: API contracts, error handling, retry logic, status transitions.
+
+4. **Validation & UX Integration (Break 4)**
+   - Deliverables: Frontend/back-end duration validation, queue UI updates (failure states, retry button), transcript reuse wiring.
+   - Review focus: user experience, messaging, guardrails for 15-minute limit.
+
+5. **Testing & Cron Automation (Break 5 / Final Sign-off)**
+   - Deliverables: Test plan execution (unit + manual), cron job configuration, monitoring hooks.
+   - Review focus: reliability under load, logging/metrics readiness, production rollout checklist.
+
+Each break is a natural stopping point where the team can QA, report issues, and formally green-light the next phase of work.
+
+## Testing & Cron Automation (Break 5)
+
+The end-to-end validation and scheduling plan now lives in `docs/PHASE6_TESTING_CHECKLIST.md`. It covers:
+
+- Environment prep & prerequisites
+- Manual test matrix (15-minute validation, retry logic, caching, worker health, UI flows)
+- Cron setup instructions (Vercel crons + curl examples)
+- Final sign-off checklist
+
+> Automated tests were not run in this environment per project instructions; please execute the manual checklist after deploying to staging/production.
+
 ### Potential Issues & Mitigations
 
 1. **Hugging Face Spaces Cold Starts**
@@ -725,7 +768,7 @@ Ensure status transitions are validated:
 - [x] Model choice confirmed (`distil-whisper/distil-medium.en`)
 - [x] Architecture confirmed (Python FastAPI on HF Spaces)
 - [x] Concurrency limit confirmed (1 job at a time)
-- [x] Video length limit confirmed (30 minutes)
+- [x] Video length limit confirmed (15 minutes)
 - [x] Transcript caching confirmed (implemented)
 - [x] Timeout confirmed (300 seconds)
 - [x] Error handling confirmed (3 retries, transient vs permanent)
