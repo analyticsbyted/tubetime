@@ -9,8 +9,8 @@ process.env.TRANSCRIPTION_WORKER_SECRET = 'test-secret-key';
 import {
   transcribeVideo,
   getWorkerHealth,
-  TranscriptionServiceError,
 } from '../transcriptionService';
+import { TranscriptionServiceError } from '@/utils/errors';
 
 // Mock environment variables
 const originalEnv = process.env;

@@ -5,6 +5,52 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.8.0] - 2025-01-XX
+
+### Added
+
+- **Phase 7: Display Transcripts UI/UX**
+  - Transcript viewing modal with segments and full text toggle
+  - In-modal search with highlighting and match navigation
+  - Copy to clipboard and export as text file functionality
+  - Transcripts page (`/transcripts`) with grid and list views
+  - Client-side search on transcripts page
+  - Transcript badge on video cards showing availability
+  - Navigation link in Header component
+
+### Changed
+
+- **Accessibility Improvements:**
+  - Added comprehensive ARIA labels to all interactive elements
+  - Implemented focus management (trap focus in modal, restore on close)
+  - Added screen reader announcements for search results
+  - Improved keyboard navigation with visible focus indicators
+  - Enhanced semantic HTML structure
+
+- **Responsive Design:**
+  - Improved mobile padding and height for transcript modal
+  - Better touch targets for mobile devices
+  - Refined breakpoints for mobile, tablet, and desktop
+
+### Technical
+
+- **Backend:**
+  - Created `GET /api/transcripts/[videoId]` route
+  - Created `GET /api/transcripts` route with pagination and filtering
+  - Created `transcriptService.js` API client
+
+- **Components:**
+  - Created `TranscriptBadge.jsx`, `TranscriptViewer.jsx`, `TranscriptModal.jsx`
+  - Created `useTranscriptStatus.js` hook
+  - Updated `VideoCard.jsx`, `VideoGrid.jsx`, `Header.jsx`, `app/page.jsx`
+
+- **Performance:**
+  - Verified smooth rendering for 15-minute videos (~200-500 segments)
+  - Documented virtualization as optional future enhancement for >30min videos
+
+- **Build Fix:**
+  - Moved `TranscriptionServiceError` to `src/utils/errors.js` to resolve "use server" export issue
+
 ## [4.7.0] - 2025-01-XX
 
 ### Removed

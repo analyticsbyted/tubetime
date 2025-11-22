@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Youtube, Star, ChevronDown, LogIn, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Youtube, Star, ChevronDown, LogIn, LogOut, FileText } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 
 // A new sub-component to handle the authentication display
@@ -153,16 +155,21 @@ function AuthButton() {
 
 
 export default function Header({ selectedCount, onOpenFavorites }) {
+  const pathname = usePathname();
+  const isTranscriptsPage = pathname === '/transcripts';
+
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="bg-red-600 p-1.5 rounded-lg">
-            <Youtube className="w-6 h-6 text-zinc-100 fill-current" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight hidden sm:block">
-            Tube<span className="text-red-500">Time</span>
-          </h1>
+          <Link href="/" className="flex items-center gap-2">
+            <div className="bg-red-600 p-1.5 rounded-lg">
+              <Youtube className="w-6 h-6 text-zinc-100 fill-current" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight hidden sm:block">
+              Tube<span className="text-red-500">Time</span>
+            </h1>
+          </Link>
           {selectedCount > 0 && (
             <span className="text-xs text-zinc-400 font-mono ml-2">
               ({selectedCount} selected)
@@ -170,6 +177,18 @@ export default function Header({ selectedCount, onOpenFavorites }) {
           )}
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            href="/transcripts"
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-2 ${
+              isTranscriptsPage
+                ? 'border-red-500 text-red-400 bg-red-500/10'
+                : 'border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+            }`}
+            title="My Transcripts"
+          >
+            <FileText className="w-3 h-3" />
+            <span className="hidden sm:inline">Transcripts</span>
+          </Link>
           <button
             onClick={onOpenFavorites}
             className="text-xs px-3 py-1.5 rounded-full border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors flex items-center gap-2"

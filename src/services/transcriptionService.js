@@ -1,5 +1,7 @@
 'use server';
 
+import { TranscriptionServiceError } from '@/utils/errors';
+
 const WORKER_URL = process.env.TRANSCRIPTION_WORKER_URL?.replace(/\/$/, '');
 const WORKER_SECRET = process.env.TRANSCRIPTION_WORKER_SECRET;
 
@@ -9,15 +11,6 @@ if (!WORKER_URL) {
 
 if (!WORKER_SECRET) {
   throw new Error('TRANSCRIPTION_WORKER_SECRET is not configured.');
-}
-
-export class TranscriptionServiceError extends Error {
-  constructor(message, { status, retryable } = {}) {
-    super(message);
-    this.name = 'TranscriptionServiceError';
-    this.status = status;
-    this.retryable = retryable ?? true;
-  }
 }
 
 function withAbortController(timeoutMs) {

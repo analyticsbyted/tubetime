@@ -1,8 +1,9 @@
 import React from 'react';
 import { Check, Calendar, Youtube, ExternalLink, Eye, ThumbsUp, MessageCircle, Clock } from 'lucide-react';
 import { formatDuration } from '../services/youtubeService';
+import TranscriptBadge from './TranscriptBadge';
 
-const VideoCard = ({ video, isSelected, onToggleSelection }) => {
+const VideoCard = ({ video, isSelected, onToggleSelection, transcriptStatus, onViewTranscript }) => {
   const { 
     id, 
     title, 
@@ -62,6 +63,14 @@ const VideoCard = ({ video, isSelected, onToggleSelection }) => {
         >
           {isSelected && <Check size={12} className="text-zinc-100" strokeWidth={3} />}
         </div>
+        {/* Transcript Badge */}
+        {transcriptStatus && (
+          <TranscriptBadge
+            videoId={id}
+            status={transcriptStatus}
+            onClick={onViewTranscript}
+          />
+        )}
       </div>
       
       <div className="p-4 flex flex-col flex-grow">

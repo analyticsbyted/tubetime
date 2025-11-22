@@ -11,6 +11,7 @@ import SearchStats from '../src/components/SearchStats';
 import SortBar from '../src/components/SortBar';
 import CollectionModal from '../src/components/CollectionModal';
 import FavoritesSidebar from '../src/components/FavoritesSidebar';
+import TranscriptModal from '../src/components/TranscriptModal';
 import VideoGrid from '../src/components/VideoGrid';
 import VideoGridSkeleton from '../src/components/VideoGridSkeleton';
 import ActionBar from '../src/components/ActionBar';
@@ -22,6 +23,7 @@ import { addToQueue } from '../src/utils/transcriptionQueue';
 import { parseISODurationToSeconds, MAX_TRANSCRIPTION_DURATION_SECONDS } from '../src/utils/duration';
 import { toast } from 'sonner';
 import { getDatePreset } from '../src/utils/datePresets';
+import { checkTranscriptStatus } from '../src/services/transcriptService';
 
 function HomePageContent() {
   // Clean up old localStorage data on mount (one-time migration cleanup)
@@ -76,6 +78,62 @@ function HomePageContent() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const [transcriptModalVideoId, setTranscriptModalVideoId] = useState(null);
+  
+  // Transcript statuses for videos (Map of videoId -> status)
+  const [transcriptStatuses, setTranscriptStatuses] = useState(new Map());
+  
+  // Check transcript statuses for current videos
+  useEffect(() => {
+    if (sortedVideos.length === 0) {
+      setTranscriptStatuses(new Map());
+      return;
+    }
+
+    let isMounted = true;
+    const statusMap = new Map();
+
+    const checkStatuses = async () => {
+      // Check status for each video (batch in parallel)
+      const statusPromises = sortedVideos.map(async (video) => {
+        try {
+          const exists = await checkTranscriptStatus(video.id);
+          return { videoId: video.id, status: exists ? 'available' : null };
+        } catch (error) {
+          // Silently fail - don't show status if check fails
+          return { videoId: video.id, status: null };
+        }
+      });
+
+      const results = await Promise.all(statusPromises);
+      
+      if (!isMounted) return;
+
+      results.forEach(({ videoId, status }) => {
+        if (status) {
+          statusMap.set(videoId, status);
+        }
+      });
+
+      setTranscriptStatuses(statusMap);
+    };
+
+    checkStatuses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sortedVideos]);
+  
+  // Handle viewing transcript
+  const handleViewTranscript = (videoId) => {
+    setTranscriptModalVideoId(videoId);
+  };
+  
+  // Handle closing transcript modal
+  const handleCloseTranscript = () => {
+    setTranscriptModalVideoId(null);
+  };
 
   // Effect: Search when URL params change
   useEffect(() => {
@@ -293,6 +351,12 @@ function HomePageContent() {
           onClose={() => setIsFavoritesOpen(false)}
           onSelectFavorite={handleSelectFavorite}
         />
+        <TranscriptModal
+          videoId={transcriptModalVideoId}
+          isOpen={!!transcriptModalVideoId}
+          onClose={handleCloseTranscript}
+          video={sortedVideos.find(v => v.id === transcriptModalVideoId)}
+        />
         <EnhancedSearchBar 
           onSearch={handleSearch} 
           isLoading={isLoading}
@@ -337,6 +401,8 @@ function HomePageContent() {
               hasMore={!!nextPageToken}
               onLoadMore={handleLoadMore}
               totalResults={totalResults}
+              transcriptStatuses={transcriptStatuses}
+              onViewTranscript={handleViewTranscript}
             />
           </Suspense>
         )}

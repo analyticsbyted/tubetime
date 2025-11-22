@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import {
   transcribeVideo,
   getWorkerHealth,
-  TranscriptionServiceError,
 } from '@/services/transcriptionService';
+import { TranscriptionServiceError } from '@/utils/errors';
 
 const SERVER_SECRET = process.env.TRANSCRIPTION_WORKER_SECRET;
 const MAX_ITEMS_PER_RUN = 5;

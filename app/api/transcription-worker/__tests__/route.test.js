@@ -4,8 +4,8 @@ import { POST, GET } from '../route';
 import {
   transcribeVideo,
   getWorkerHealth,
-  TranscriptionServiceError,
 } from '@/services/transcriptionService';
+import { TranscriptionServiceError } from '@/utils/errors';
 import { prisma } from '@/lib/prisma';
 
 // Mock Prisma
@@ -17,14 +17,6 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/services/transcriptionService', () => ({
   transcribeVideo: vi.fn(),
   getWorkerHealth: vi.fn(),
-  TranscriptionServiceError: class TranscriptionServiceError extends Error {
-    constructor(message, { status, retryable } = {}) {
-      super(message);
-      this.name = 'TranscriptionServiceError';
-      this.status = status;
-      this.retryable = retryable ?? true;
-    }
-  },
 }));
 
 // Mock Next.js Request

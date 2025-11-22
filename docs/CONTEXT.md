@@ -130,7 +130,7 @@ The project began with a clear vision from the user: a React application called 
 
 ## Current Status
 
-**Migration Status:** ✅ All localStorage features have been successfully migrated to database-backed API routes (Phases 2-5 complete). Clean cutover completed (v4.7.0) - all localStorage code removed. The application is now database-only with authentication required for all persistent data operations.
+**Migration Status:** ✅ All localStorage features have been successfully migrated to database-backed API routes (Phases 2-5 complete). Clean cutover completed (v4.7.0) - all localStorage code removed. Phase 7 (Display Transcripts) complete (v4.8.0). The application is now database-only with authentication required for all persistent data operations.
 
 The application is now in a stable, production-ready state with enhanced features:
 
@@ -152,10 +152,11 @@ The application is now in a stable, production-ready state with enhanced feature
 ✅ **Channel Filtering:** Clickable channels in stats, fuzzy matching suggestions  
 ✅ **Sort Functionality:** Client-side sorting with dedicated SortBar component  
 ✅ **Transcription Queue:** Implemented queue system with database persistence (Phase 5 - COMPLETE)
+✅ **Transcript Viewing:** Complete UI/UX for viewing transcripts with search, highlighting, and export (Phase 7 - COMPLETE)
 ✅ **Comprehensive Testing:** Test suite for utility functions (AppContext tests removed after refactoring)
 ✅ **Database Foundation:** Complete schema with User, Account, Session, Collection, Video, VideosInCollections, SearchHistory, Favorite, and TranscriptionQueue models. All migrations applied successfully.
 ✅ **Authentication Foundation:** NextAuth.js fully integrated with Prisma adapter, Google and GitHub OAuth providers, and UI components in Header.
-✅ **API Routes:** Complete REST API for Collections (Phase 2), Search History (Phase 3), Favorites (Phase 4), and Transcription Queue (Phase 5). All routes authenticated and user-scoped.
+✅ **API Routes:** Complete REST API for Collections (Phase 2), Search History (Phase 3), Favorites (Phase 4), Transcription Queue (Phase 5), and Transcripts (Phase 7). All routes authenticated and user-scoped.
 ✅ **Database-Only:** All features use database-only operations. Clean cutover completed (v4.7.0). Authentication required for all persistent data operations.
 ### Architectural Refactoring (v3.0.0) - Next.js Best Practices
 
@@ -697,8 +698,43 @@ This structure should be updated whenever a new top-level concern is introduced 
 - **Accessing MCP settings:** macOS menu bar → `Cursor` → `Settings…` → `Model Context Protocol`. From there you can confirm/toggle Browser MCP or add additional servers.
 - **Onboarding reminder:** Keep this note updated so future contributors (and LLM assistants) know which MCP servers are already configured and ready to use.
 
+## Phase 7: Display Transcripts UI/UX (v4.8.0) - ✅ COMPLETE
+
+**Implementation Summary:**
+- ✅ Created backend API routes for transcript retrieval (`GET /api/transcripts/[videoId]`, `GET /api/transcripts`)
+- ✅ Built comprehensive UI components (TranscriptBadge, TranscriptViewer, TranscriptModal)
+- ✅ Implemented transcript viewing with segments and full text toggle
+- ✅ Added in-modal search with highlighting and match navigation
+- ✅ Created TranscriptsPage (`/transcripts`) with grid/list views and client-side search
+- ✅ Integrated transcript badges into video cards
+- ✅ Added navigation link in Header component
+- ✅ Comprehensive accessibility improvements (ARIA labels, focus management, keyboard navigation)
+- ✅ Performance optimized (15-minute videos render smoothly without virtualization)
+
+**Key Features:**
+- Transcript viewing with segments display and full text toggle
+- In-modal search with real-time highlighting and match navigation (Enter/Shift+Enter)
+- Copy to clipboard and export as text file
+- Grid and list view modes on transcripts page
+- Client-side search on transcripts page (by title, channel, or content)
+- Responsive design (mobile, tablet, desktop)
+- Full accessibility support (WCAG compliant)
+
+**Technical Details:**
+- Created `transcriptService.js` API client
+- Created `useTranscriptStatus.js` hook for checking transcript availability
+- Fixed build error: Moved `TranscriptionServiceError` to `src/utils/errors.js`
+- Performance: Verified smooth rendering for 15-minute videos (~200-500 segments)
+- Future: Documented virtualization as optional enhancement for >30min videos
+
+**Documentation:**
+- ✅ Created `PHASE7_IMPLEMENTATION_PLAN.md` and `PHASE7_PLAN_REVIEW.md`
+- ✅ Updated `CHANGELOG.md` with v4.8.0 release notes
+- ✅ Updated `MIGRATION_PLAN.md` with Phase 7 status
+
 ## Open Topics / Future Work
-1. Phase 6 implementation (Transcription Worker MVP)
-2. Phase 7 planning (Display transcripts UI/UX)
+1. Phase 6 implementation (Transcription Worker MVP) - ✅ COMPLETE
+2. Phase 7 planning (Display transcripts UI/UX) - ✅ COMPLETE
 3. Transcription feature manual testing checklist
 4. Observability & performance monitoring post-clean cutover
+5. Break 6: Caching & State Management (React Query integration)

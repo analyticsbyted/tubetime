@@ -15,11 +15,12 @@ TubeTime is a historical YouTube search engine that allows users to search, cura
 -   **Export:** Export video data to JSON or CSV.
 -   **Search Statistics:** Dashboard with total results, channel distribution, and other analytics.
 -   **Transcription Queue:** Queue videos for transcription with status tracking (pending, processing, completed, failed).
+-   **Transcript Viewing:** View video transcripts with search, highlighting, copy, and export functionality.
 
 #### User & Data Persistence
 -   **Authentication:** User accounts and session management powered by NextAuth.js.
 -   **Database Backend:** User data, collections, search history, favorites, and transcription queue are stored in a PostgreSQL database (Neon) via Prisma.
--   **Migration Status:** All localStorage features migrated to database. Clean cutover completed (v4.7.0) - database-only operations. Phases 2-5 complete. See [MIGRATION_PLAN.md](./docs/MIGRATION_PLAN.md) for details.
+-   **Migration Status:** All localStorage features migrated to database. Clean cutover completed (v4.7.0) - database-only operations. Phases 2-7 complete. See [MIGRATION_PLAN.md](./docs/MIGRATION_PLAN.md) for details.
 
 ## Tech Stack
 

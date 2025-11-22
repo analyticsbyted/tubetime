@@ -12,6 +12,8 @@ const VideoGrid = ({
   hasMore,
   onLoadMore,
   totalResults,
+  transcriptStatuses, // Map of videoId -> status
+  onViewTranscript, // Handler for viewing transcript
 }) => {
   const allSelected = videos.length > 0 && videos.every(v => selection.has(v.id));
   const someSelected = selection.size > 0 && !allSelected;
@@ -78,6 +80,8 @@ const VideoGrid = ({
             video={video}
             isSelected={selection.has(video.id)}
             onToggleSelection={onToggleSelection}
+            transcriptStatus={transcriptStatuses?.get(video.id) || null}
+            onViewTranscript={onViewTranscript}
           />
         ))}
       </div>
