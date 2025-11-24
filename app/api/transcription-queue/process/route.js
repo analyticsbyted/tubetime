@@ -10,6 +10,15 @@ import { TranscriptionServiceError } from '@/utils/errors';
 const MAX_ITEMS_PER_RUN = 5;
 
 async function fetchQueueItems({ queueItemId, maxItems, userId }) {
+  // Verify prisma and model are available
+  if (!prisma) {
+    throw new Error('Prisma client is not initialized');
+  }
+  if (!prisma.transcriptionQueue) {
+    console.error('Prisma client structure:', Object.keys(prisma));
+    throw new Error('TranscriptionQueue model is not available. Please regenerate Prisma client.');
+  }
+
   if (queueItemId) {
     const item = await prisma.transcriptionQueue.findUnique({
       where: { 
@@ -78,17 +87,21 @@ async function processQueueItem(queueItem) {
   });
 
   try {
-    const result = await transcribeVideo(queueItem.videoId);
+    const result = await transcribeVideo({
+      videoId: queueItem.videoId,
+      language: queueItem.video?.language || 'en',
+    });
 
     await prisma.transcript.create({
       data: {
         videoId: queueItem.videoId,
-        text: result.text,
+        content: result.text || '',  // Use 'content' field to match schema
         segments: result.segments || [],
-        language: result.language || 'en',
-        confidence: result.confidence || 0,
-        duration: result.duration || 0,
-        wordCount: result.wordCount || 0,
+        language: result.language || null,
+        confidence: typeof result.confidence === 'number' ? result.confidence : null,
+        duration: typeof result.duration === 'number' ? Math.round(result.duration) : null,
+        wordCount: typeof result.wordCount === 'number' ? result.wordCount : null,
+        processingDuration: typeof result.processingDuration === 'number' ? Math.round(result.processingDuration) : null,
       },
     });
 
@@ -130,6 +143,15 @@ async function processQueueItem(queueItem) {
  */
 export async function POST(request) {
   try {
+    // Verify prisma is available
+    if (!prisma) {
+      console.error('Prisma client is not initialized');
+      return NextResponse.json(
+        { error: 'Database connection error. Please try again.' },
+        { status: 500 }
+      );
+    }
+
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -154,7 +176,24 @@ export async function POST(request) {
         completed: 0,
         failed: 0,
         results: [],
+        message: 'No pending items in queue.',
       });
+    }
+
+    // Check if worker is configured before processing
+    const workerUrl = process.env.TRANSCRIPTION_WORKER_URL;
+    const workerSecret = process.env.TRANSCRIPTION_WORKER_SECRET;
+    
+    if (!workerUrl || !workerSecret) {
+      // Worker not configured - return helpful error
+      return NextResponse.json({
+        processed: 0,
+        completed: 0,
+        failed: 0,
+        results: [],
+        error: 'Transcription worker is not configured.',
+        message: 'Please set TRANSCRIPTION_WORKER_URL and TRANSCRIPTION_WORKER_SECRET environment variables. Videos are queued but cannot be processed until the worker is configured.',
+      }, { status: 503 }); // Service Unavailable
     }
 
     const results = [];
@@ -180,8 +219,17 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Error processing transcription queue:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      cause: error.cause,
+    });
     return NextResponse.json(
-      { error: 'Failed to process transcription queue.' },
+      { 
+        error: error.message || 'Failed to process transcription queue.',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
       { status: 500 }
     );
   }
