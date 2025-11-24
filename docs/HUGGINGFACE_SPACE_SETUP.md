@@ -1,203 +1,183 @@
 # Hugging Face Space Worker Setup Guide
 
-This guide walks you through setting up the transcription worker on Hugging Face Spaces.
+This is the canonical runbook for deploying or rebuilding the transcription worker on Hugging Face Spaces. It reflects everything we learned while fixing DNS resolution, YouTube bot detection, and build failures in November 2025.
+
+## Quick Facts
+
+- **Space:** `analyticsbyted/tubetime-transcription-worker`
+- **SDK:** Docker (Gradio/Blank were tested but reverted)
+- **Port:** 7860 (Spaces injects `PORT`, but the startup script defaults to 7860)
+- **Key Files:** `huggingface-space/Dockerfile`, `app.py`, `requirements.txt`, `packages.txt` (for future SDK switch)
+- **Secrets:** `TRANSCRIPTION_WORKER_SECRET` (auth) + `YOUTUBE_COOKIES` (Base64 Netscape cookie file)
+- **Test Harness:** `node test_worker_connection.cjs`
 
 ## Prerequisites
 
-- Hugging Face account (sign up at https://huggingface.co/join)
-- Access to your local `.env` file
+- Hugging Face account (https://huggingface.co/join)
+- Access to a YouTube account for fresh cookies (export via browser dev tools)
+- Local `.env` file with worker URL + secret
+- `openssl`, `python3`, and `base64` CLI available for secret prep
 
 ## Step-by-Step Setup
 
-### Step 1: Create the Hugging Face Space
+### Step 1: Prep YouTube Cookies (Required for Bypassing Bot Checks)
 
-1. Go to https://huggingface.co/spaces
-2. Click **"Create new Space"**
-3. Fill in the form:
-   - **Owner:** Your Hugging Face username
-   - **Space name:** `tubetime-transcription-worker` (or your preferred name)
-   - **SDK:** Select **"Docker"** (this is important!)
-   - **Visibility:** **Private** (recommended for security)
-   - **License:** MIT (or your choice)
-4. Click **"Create Space"**
-
-### Step 2: Upload the Code
-
-You have two options:
-
-**Option A: Web UI (Easiest)**
-1. In your new Space, click **"Files and versions"** tab
-2. Click **"Add file"** → **"Upload files"**
-3. Upload these files from `huggingface-space/`:
-   - `Dockerfile`
-   - `app.py`
-   - `requirements.txt`
-   - `.dockerignore` (optional but recommended)
-
-**Option B: Git (Recommended for updates)**
-1. In your Space, go to **"Files and versions"** tab
-2. Copy the git clone URL shown
-3. In your terminal:
+1. Export cookies from a logged-in browser session using the “Copy cookies as Netscape” feature (e.g., via the EditThisCookie extension or `Developer Tools → Application → Cookies → Export`).
+2. Run the filter script to drop expired entries:
    ```bash
-   cd huggingface-space
-   git clone <your-space-git-url> .
-   # Or if you want to keep it separate:
-   git clone <your-space-git-url> ../hf-space-deploy
-   cd ../hf-space-deploy
+   python3 filter_active_cookies.py cookies-raw.txt youtube-cookie-active.txt
    ```
-4. Copy files:
+3. Base64 encode the filtered file to preserve tabs/newlines:
    ```bash
-   cp Dockerfile app.py requirements.txt .dockerignore .
+   base64 youtube-cookie-active.txt > youtube-cookie-active.b64
    ```
-5. Commit and push:
+4. You’ll paste the entire one-line Base64 string into the Hugging Face secret `YOUTUBE_COOKIES`. Tabs are critical for yt-dlp; never paste the raw text directly.
+
+> **Rotation Tip:** Cookies expire every few days. Re-run the steps above and update the secret whenever YouTube starts returning “Sign in to confirm you’re not a bot.”
+
+### Step 2: Create or Rebuild the Space
+
+1. Go to https://huggingface.co/spaces and click **Create new Space**.
+2. Form values:
+   - **Owner:** Your username or organization
+   - **Space name:** `tubetime-transcription-worker` (or consistent variant)
+   - **SDK:** **Docker**
+   - **Visibility:** Private (recommended)
+   - **Hardware:** CPU basic (free tier works, but expect ~1x real-time transcription)
+3. Click **Create Space**.
+
+### Step 3: Upload the Worker Code
+
+Either drag/drop via the UI or push via git. Files to include:
+
+- `Dockerfile` – runs as root, installs `ffmpeg`, `git`, `dnsutils`, and writes `/start.sh` that re-applies DNS servers (`8.8.8.8`, `8.8.4.4`, `1.1.1.1`) before launching `uvicorn`. **Do not reintroduce non-root users**; Hugging Face overwrites `/etc/resolv.conf` otherwise.
+- `app.py` – FastAPI app with `/` health and `/transcribe` endpoints. Handles Base64 cookies and raises HTTP 400 for videos > 15 minutes.
+- `requirements.txt`
+- `packages.txt` – currently only `ffmpeg`. Used if we ever switch back to Gradio SDK.
+
+If you prefer git:
+
+```bash
+cd huggingface-space
+git init
+git remote add origin https://huggingface.co/spaces/<owner>/<space>
+git add Dockerfile app.py requirements.txt packages.txt
+git commit -m "Deploy worker"
+git push origin main
+```
+
+### Step 4: Configure Secrets
+
+Go to **Settings → Variables and secrets** inside the Space and add:
+
+| Key | Value | Notes |
+|-----|-------|-------|
+| `TRANSCRIPTION_WORKER_SECRET` | Output of `openssl rand -base64 32` | Must match `TRANSCRIPTION_WORKER_SECRET` in `.env`. |
+| `YOUTUBE_COOKIES` | Contents of `youtube-cookie-active.b64` | Single line string; the app decodes it server-side and verifies tabs. |
+
+Optional (used for debugging):
+
+| Key | Purpose |
+|-----|---------|
+| `WHISPER_MODEL_ID` | Override the default `distil-whisper/distil-medium.en`. |
+| `PYTHONUNBUFFERED` | Already set in Dockerfile (`1`). |
+
+### Step 5: Update Local Environment
+
+Edit `.env` in the repo root:
+
+```env
+TRANSCRIPTION_WORKER_URL="https://<owner>-tubetime-transcription-worker.hf.space"
+TRANSCRIPTION_WORKER_SECRET="same-value-as-in-space"
+```
+
+Restart any running dev servers after editing `.env`.
+
+### Step 6: Monitor the Build
+
+1. Switch to the **Logs** tab right after pushing.
+2. Confirm the following sequence:
+   - Docker pulls `python:3.11`
+   - `apt-get` installs `ffmpeg git dnsutils`
+   - `pip install -r requirements.txt`
+   - Whisper model downloads the first time the app handles `/transcribe`
+3. Wait for `INFO: Application startup complete.`  
+   If you see `Exit code: 0` immediately, it means the startup script didn’t run (usually because `/start.sh` wasn’t executable). Re-push to rebuild.
+
+### Step 7: Run Smoke Tests
+
+1. **Health check**
    ```bash
-   git add .
-   git commit -m "Initial deployment"
-   git push
+   curl https://<owner>-tubetime-transcription-worker.hf.space/
    ```
+   Should include `{"status":"ok","cookies":{"status":"set",...}}`.
 
-### Step 3: Generate and Set the Secret
-
-1. **Generate a secure secret:**
+2. **Connection script** (runs both health + transcription)
    ```bash
-   openssl rand -base64 32
+   node test_worker_connection.cjs
    ```
-   Copy the output - you'll need it in two places.
+   The script uses `.env` credentials and reports latency + payload.
 
-2. **Add secret to Hugging Face Space:**
-   - In your Space, go to **"Settings"** → **"Variables and secrets"**
-   - Click **"Add new secret"**
-   - **Key:** `TRANSCRIPTION_WORKER_SECRET`
-   - **Value:** Paste the secret you generated
-   - Click **"Add secret"**
-
-3. **Save the secret** - you'll also need it for your local `.env` file.
-
-### Step 4: Wait for Deployment
-
-1. After uploading files, Hugging Face Spaces will automatically start building
-2. Go to the **"Logs"** tab to watch the build progress
-3. The first build takes 5-10 minutes (downloading dependencies, building Docker image)
-4. Wait until you see "Application startup complete" in the logs
-
-### Step 5: Get Your Space URL
-
-1. Once deployed, your Space will have a URL like:
-   ```
-   https://yourusername-tubetime-transcription-worker.hf.space
-   ```
-2. Copy this URL - you'll need it for your local environment
-
-### Step 6: Update Local Environment
-
-1. Open your `.env` file (or create it if it doesn't exist)
-2. Add these two lines:
-   ```env
-   TRANSCRIPTION_WORKER_URL="https://yourusername-tubetime-transcription-worker.hf.space"
-   TRANSCRIPTION_WORKER_SECRET="paste-the-secret-you-generated-here"
-   ```
-3. **Important:** Use the exact same secret value you set in the Hugging Face Space!
-
-**Note:** This project uses `.env` (not `.env.local`) for environment variables.
-
-### Step 7: Test the Connection
-
-1. **Test the worker health:**
+3. **Manual transcription**
    ```bash
-   curl https://yourusername-tubetime-transcription-worker.hf.space/
-   ```
-   Should return: `{"status":"ok","model":"distil-whisper/distil-medium.en","device":"cpu"}`
-
-2. **Test transcription (requires secret):**
-   ```bash
-   curl -X POST https://yourusername-tubetime-transcription-worker.hf.space/transcribe \
-     -H "Authorization: Bearer YOUR_SECRET_HERE" \
+   curl -X POST https://<owner>-tubetime-transcription-worker.hf.space/transcribe \
+     -H "Authorization: Bearer $TRANSCRIPTION_WORKER_SECRET" \
      -H "Content-Type: application/json" \
-     -d '{"videoId":"dQw4w9WgXcQ"}'
+     -d '{"videoId":"tPEE9ZwTmy0","language":"en"}'
    ```
 
-3. **Test from your Next.js app:**
-   - Restart your Next.js dev server: `npm run dev`
-   - Queue a video for transcription
-   - Check the browser console and network tab for any errors
+4. **App-level test**
+   - Queue a fresh video inside TubeTime.
+   - Watch `/api/transcription-queue/process` logs.
+   - Verify `TranscriptionProgress` -> “View transcript” flows with no blank modal.
+
+### Step 8: Document Secrets for Future Rotations
+
+- Store the latest cookie export date + browser in a secure doc (not in git).
+- Note who last rotated the cookies and when the Space was rebuilt.
+- Update this doc if you change the Dockerfile or add new secrets.
 
 ## Troubleshooting
 
-### Build Fails
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| `socket.gaierror: [Errno -5]` | `/etc/resolv.conf` overwritten after reboot | Ensure Dockerfile + `/start.sh` still echo Google/Cloudflare DNS right before `uvicorn`. Never run as non-root. |
+| `Sign in to confirm you’re not a bot` | Cookies missing or stale | Re-export cookies, run `filter_active_cookies.py`, Base64 encode, update `YOUTUBE_COOKIES`. |
+| Build fails with exit code 255 | Secrets too large or invalid | Ensure `YOUTUBE_COOKIES` line is <10 KB and contains no newline characters outside Base64. |
+| `Address already in use` on port 7861 | Gradio SDK auto-launch + manual `uvicorn` conflict | Only relevant if switching SDKs. Our Dockerfile launches `uvicorn` directly so this should not happen. |
+| Transcript modal blank | `Video` relation missing | Ensure you’re on commit `Ensure Video record exists before creating transcript` (Nov 23). |
+| Transcript too short vs video length | yt-dlp served SABR images only | Worker logs a warning with expected vs actual word count. Re-queue with fresh cookies or wait for manual review. |
 
-- **Check logs:** Go to "Logs" tab in your Space
-- **Common issues:**
-  - Missing `Dockerfile` - make sure you uploaded it
-  - Wrong SDK selected - must be "Docker", not "Gradio" or "Streamlit"
-  - Syntax errors in `app.py` - check Python syntax
-
-### Worker Returns 401 Unauthorized
-
-- **Check secret:** Make sure `TRANSCRIPTION_WORKER_SECRET` in `.env` matches the secret in Hugging Face Space
-- **Check environment variables:** Restart your Next.js server after updating `.env`
-
-### Worker Returns 500 Errors
-
-- **Check Space logs:** Go to "Logs" tab to see error details
-- **Common causes:**
-  - Video not found (404 from YouTube)
-  - Video too long (>15 minutes)
-  - Out of memory (free tier has limits)
-  - Model download failed (first request may take longer)
-
-### Slow Performance
-
-- **First request:** The first transcription is slow because the model needs to be downloaded
-- **CPU-only:** Free tier runs on CPU, which is slower than GPU
-- **Video length:** Longer videos take more time to process
+More detailed postmortems for each incident live in `docs/TRANSCRIPTION_WORKER_TROUBLESHOOTING.md`.
 
 ## Updating the Worker
 
-If you need to update the code:
+1. Make changes under `huggingface-space/`.
+2. Commit + push to both GitHub (for history) and the Space remote.
+3. Watch the Space rebuild. Factory rebuilds wipe the Docker cache, so the first transcription after re-push will download the Whisper weights again (~800 MB).
 
-1. **Via Git:**
-   ```bash
-   cd huggingface-space  # or your git clone location
-   # Make your changes
-   git add .
-   git commit -m "Update worker code"
-   git push
-   ```
+## Alternative Platforms
 
-2. **Via Web UI:**
-   - Go to "Files and versions" tab
-   - Click on the file you want to edit
-   - Click "Edit" button
-   - Make changes and commit
+If Hugging Face resumes blocking DNS, the worker can be redeployed to:
 
-3. **Spaces will automatically rebuild** after you push changes
+- **Railway:** Dockerfile-ready, also supports cron tasks for queue polling.
+- **Render:** Free web service plan can run FastAPI with similar resources.
+- **Fly.io:** Good for global routing; would require secrets stored via `fly secrets`.
 
-## Cost Considerations
-
-- **Free tier:** Limited CPU time, may have rate limits
-- **Upgrade:** If you need more resources, consider upgrading to a paid Hugging Face Space
-- **Alternative:** Self-host on your own server for unlimited usage
+See `docs/TRANSCRIPTION_WORKER_TROUBLESHOOTING.md` for pros/cons captured during earlier evaluations.
 
 ## Security Notes
 
-- **Keep the secret secure:** Never commit `TRANSCRIPTION_WORKER_SECRET` to git
-- **Private Space:** Keep your Space private to prevent unauthorized access
-- **Rate limiting:** Consider adding rate limiting if you make the Space public
+- Keep the Space private. Public Spaces expose `/transcribe` to anyone who guesses the URL.
+- Never commit secrets or raw cookie files.
+- Remove old cookies from local machines once encoded.
+- Rotate `TRANSCRIPTION_WORKER_SECRET` if it’s ever exposed; update `.env` simultaneously.
 
-## Next Steps
+## Support Checklist
 
-Once your worker is deployed and tested:
-
-1. Queue some videos for transcription in your app
-2. Watch the progress panel update in real-time
-3. Check that transcripts are being generated successfully
-4. Monitor the Space logs for any issues
-
-## Support
-
-If you encounter issues:
-1. Check the Space logs first
-2. Verify all environment variables are set correctly
-3. Test the worker directly with curl
-4. Check the main project README for troubleshooting tips
+1. Check Space logs (build + runtime).
+2. Run `node test_worker_connection.cjs`.
+3. Review worker logs in Hugging Face (look for yt-dlp warnings).
+4. Verify Prisma tables (`npx prisma studio`) if UI still fails.
+5. Escalate to alternative platform plan if DNS fails repeatedly even after rebuild.
 

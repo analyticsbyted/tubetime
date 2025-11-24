@@ -32,6 +32,35 @@ TubeTime is a historical YouTube search engine that allows users to search, cura
 -   **Authentication:** [NextAuth.js](https://next-auth.js.org/)
 -   **Styling:** Tailwind CSS
 -   **Icons:** Lucide React
+-   **Transcription Worker:** FastAPI + Whisper (Python 3.11) deployed on Hugging Face Spaces
+
+## System Architecture Overview
+
+TubeTime now operates as two coordinated services:
+
+- `Next.js App` (this repository) provides the UI, queue management, database persistence, and user authentication.
+- `Hugging Face Space Worker` (`huggingface-space/`) hosts a FastAPI service that downloads YouTube audio via `yt-dlp`, runs Whisper ASR, and returns transcripts.
+
+Key files for the worker:
+
+- `huggingface-space/Dockerfile` – Python `3.11` base image, runs as root, and rewrites `/etc/resolv.conf` on every boot to force Google + Cloudflare DNS. This was necessary to fix the `[Errno -5] No address associated with hostname` failures inside Spaces.
+- `huggingface-space/app.py` – FastAPI app with `/` health endpoint and `/transcribe` secured by `TRANSCRIPTION_WORKER_SECRET`.
+- `huggingface-space/requirements.txt` – Includes FastAPI, transformers, yt-dlp, ffmpeg-python, and `uvicorn`.
+- `test_worker_connection.cjs` – Local script that pings the Space and exercises `/transcribe` end-to-end.
+
+### Current Worker Status (Nov 2025)
+
+- The worker is deployed at `https://analyticsbyted-tubetime-transcription-worker.hf.space` using the Docker SDK. The container must stay root to mutate `/etc/resolv.conf` before `uvicorn` starts.
+- `YOUTUBE_COOKIES` **must** be supplied as a Base64-encoded Netscape cookie file so that yt-dlp can bypass YouTube’s “sign in to confirm you’re not a bot” wall. Use `filter_active_cookies.py` + `base64` to prep the secret.
+- `TRANSCRIPTION_WORKER_SECRET` secures the `/transcribe` endpoint; the same value lives in `.env` and Hugging Face Space secrets.
+- Recent fixes:
+  - Forced IPv4 and Google DNS to resolve YouTube reliably
+  - Added runtime cookie extraction, temporary file handling, and player client fallbacks
+  - Ensured Prisma saves `Transcript` + `Video` records atomically (UI no longer shows blank modal)
+- Known caveats:
+  - Whisper output can be truncated when YouTube serves only SABR image streams. The worker logs a warning when fewer words than expected are produced; future work may require JS challenge solvers or alternate extractor clients.
+  - Factory rebuild wipes `/etc/resolv.conf`; let the startup script run before testing.
+- Alternative platforms (Railway, Render, Fly.io) are partially evaluated; see `docs/TRANSCRIPTION_WORKER_TROUBLESHOOTING.md` for the migration matrix and lessons learned.
 
 ## Getting Started
 
@@ -44,6 +73,8 @@ All project documentation now lives under `docs/`. Key references:
 - [MIGRATION_PLAN](./docs/MIGRATION_PLAN.md)
 - [SECURITY](./docs/SECURITY.md) - Security considerations and best practices
 - [TROUBLESHOOTING](./docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [HUGGINGFACE_SPACE_SETUP](./docs/HUGGINGFACE_SPACE_SETUP.md) - Canonical worker deployment steps
+- [TRANSCRIPTION_WORKER_TROUBLESHOOTING](./docs/TRANSCRIPTION_WORKER_TROUBLESHOOTING.md) - Detailed issue log and mitigations
 - [Implementation Summaries & Testing Guides](./docs/)
 
 Use these files for architecture history, migration steps, testing procedures, and security guidelines.

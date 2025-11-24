@@ -293,11 +293,30 @@ async def transcribe(
 
     processing_duration = time.perf_counter() - started
 
+    # Log transcription results for debugging
     logger.info(
       "Transcription completed for %s in %.2fs",
       payload.videoId,
       processing_duration,
     )
+    logger.info(
+      "Transcription stats: text_length=%d, segments_count=%d, word_count=%d",
+      len(text),
+      len(segments),
+      len(text.split()),
+    )
+
+    # Validate transcription completeness
+    if duration and duration > 30:  # For videos longer than 30 seconds
+      expected_min_words = int((duration / 60) * 100)  # Rough estimate: ~100 words per minute
+      actual_words = len(text.split())
+      if actual_words < expected_min_words * 0.3:  # If we have less than 30% of expected words
+        logger.warning(
+          "Transcription may be incomplete: expected ~%d words, got %d words for %.1fs video",
+          expected_min_words,
+          actual_words,
+          duration,
+        )
 
     return {
       "videoId": payload.videoId,

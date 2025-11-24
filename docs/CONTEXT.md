@@ -39,6 +39,37 @@ The project began with a clear vision from the user: a React application called 
     -   **ORM:** Prisma for its type-safety and excellent integration with the Next.js ecosystem.
     -   **Authentication:** NextAuth.js for its flexibility and seamless integration as a free, open-source library.
 
+## Phase 6-7: Transcription Worker Deployment Timeline (2025)
+
+This section captures the production history of the Hugging Face Space worker and related fixes so a new team can understand what was tried, what worked, and where we are today.
+
+### Architecture Snapshot
+
+- **Worker stack:** FastAPI + Whisper (`distil-whisper/distil-medium.en`), `yt-dlp`, ffmpeg; deployed via `python:3.11` Docker image.
+- **Hosting:** Hugging Face Spaces (Docker SDK) at `analyticsbyted/tubetime-transcription-worker`.
+- **Secrets:** `TRANSCRIPTION_WORKER_SECRET` (auth), `YOUTUBE_COOKIES` (Base64 Netscape file), and optional `TRANSCRIPTION_WORKER_URL` override in `.env`.
+- **Frontend orchestration:** `app/api/transcription-queue/process/route.js` ensures `Video` + `Transcript` rows exist before escalating UI updates.
+
+### Timeline of Incidents & Fixes
+
+| Date (2025) | Problem | Symptoms | Fix / Outcome |
+|-------------|---------|----------|---------------|
+| Nov 18 | DNS resolution failures (`[Errno -5]`) inside Space | yt-dlp could not reach `www.youtube.com` despite `force_ipv4` | Switched Docker base to `python:3.11`, removed non-root user, and added startup script that rewrites `/etc/resolv.conf` with Google + Cloudflare DNS at build and runtime. |
+| Nov 19 | YouTube bot detection (“Sign in to confirm you’re not a bot”) | yt-dlp saw only image formats, Whisper received empty audio | Added cookie ingestion pipeline: filter active cookies (`filter_active_cookies.py`), Base64 encode to preserve tabs, store as `YOUTUBE_COOKIES` secret, decode at runtime into temp file, and prioritize `web` client with iOS UA fallback. |
+| Nov 20 | Hugging Face build failures (exit code 255) after adding cookie secret | Build aborted before running tests | Cookie secret exceeded HF size/line limits. Filtering + Base64 encoding reduced to ~3 KB and restored successful builds. |
+| Nov 21 | Gradio SDK experiments | Port 7860 conflicts, exit code 0 (no server running) | Wrapped FastAPI with Gradio `Blocks`, but reverted to Docker SDK for full control. Documented SDK-switch procedure for future reference. |
+| Nov 22 | Transcripts saved without `Video` relation | Transcript modal showed debug state: has transcript, no video | Fixed queue processor to `upsert` the video before writing the transcript. Added fallbacks in `/api/transcripts/[videoId]` and `TranscriptModal` to avoid blank UI. |
+| Nov 23 | Worker returning incomplete transcripts (~600 chars of 4-minute video) | UI shows partial text only | Added instrumentation inside `app.py` to log expected vs actual word count and flag incomplete runs. Cause is YouTube SABR streaming that strips audio URLs even with cookies. Future work documented under “Open Risks”. |
+
+### Open Risks / Next Experiments
+
+1. **SABR / E-Challenge solving:** yt-dlp warns “n challenge solving failed”. We currently ship `deno` runtime but no JS solver bundle. Evaluate bundling Node or the yt-dlp JS solver assets, or proxying via `youtubei.js`.
+2. **Platform alternatives:** Factory rebuilds occasionally revert DNS; Railway/Render/Fly deployments should stay on the roadmap if HF policy changes.
+3. **Cookie rotation:** Secrets expire every few days. Documented workflow for exporting fresh cookies, filtering, Base64 encoding, and updating the Space.
+4. **Transcript completeness validation:** Worker now logs warnings when transcripts fall below 30% of expected words. Consider surfacing that flag in Prisma so the UI can tell the user a retry is recommended.
+
+Refer to `docs/HUGGINGFACE_SPACE_SETUP.md` for deployment steps and `docs/TRANSCRIPTION_WORKER_TROUBLESHOOTING.md` for detailed logs of each incident, including commands and configuration diffs.
+
 ## Development History & Challenges
 
 **Note:** The project was initially built with Vite + React, but migrated to Next.js in v2.0.0 for Phase 2 backend integration. The following sections document the original Vite setup for historical context.

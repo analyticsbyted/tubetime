@@ -7,10 +7,13 @@
 
 - [ ] Hugging Face account (sign up at https://huggingface.co/join if needed)
 - [ ] Files ready in `huggingface-space/` directory:
-  - [ ] `Dockerfile`
+  - [ ] `Dockerfile` (python:3.11 base, DNS startup script)
   - [ ] `app.py`
   - [ ] `requirements.txt`
-  - [ ] `.dockerignore` (optional)
+  - [ ] `packages.txt` (kept for potential SDK switch)
+- [ ] A fresh YouTube cookie export (Netscape format), filtered + Base64 encoded
+- [ ] `.env` with `TRANSCRIPTION_WORKER_URL` and `TRANSCRIPTION_WORKER_SECRET`
+- [ ] Node.js installed locally to run `test_worker_connection.cjs`
 
 ## Step-by-Step Deployment
 
@@ -32,11 +35,11 @@
 
 1. In your new Space, you'll see a file browser
 2. Click **"Add file"** → **"Upload files"**
-3. Upload these 4 files from `huggingface-space/`:
+3. Upload these files from `huggingface-space/`:
    - `Dockerfile`
    - `app.py`
    - `requirements.txt`
-   - `.dockerignore`
+   - `packages.txt`
 4. Click **"Commit changes to main"** button
 
 **Option B: Git (Better for updates)**
@@ -59,28 +62,36 @@
    git push origin main
    ```
 
-### Step 3: Generate Secret (1 minute)
+### Step 3: Generate Worker Secret (1 minute)
 
 1. **Open terminal** and run:
    ```bash
    openssl rand -base64 32
    ```
-2. **Copy the output** - you'll need it in two places:
-   - Hugging Face Space settings
-   - Your local `.env` file
+2. **Copy the output** - you'll need it in .env **and** the Space.
 
-### Step 4: Add Secret to Space (2 minutes)
+### Step 4: Prepare `YOUTUBE_COOKIES` (3 minutes)
+
+1. Export cookies from a logged-in YouTube browser session (Netscape format).
+2. Filter and Base64 encode:
+   ```bash
+   python3 filter_active_cookies.py cookies-raw.txt youtube-cookie-active.txt
+   base64 youtube-cookie-active.txt > youtube-cookie-active.b64
+   ```
+3. Keep `youtube-cookie-active.b64` handy for the secret.
+
+### Step 5: Add Secrets to the Space (2 minutes)
 
 1. In your Space, go to **"Settings"** tab (left sidebar)
-2. Click **"Variables and secrets"** (under "Space settings")
-3. Click **"Add new secret"** button
-4. Fill in:
-   - **Key:** `TRANSCRIPTION_WORKER_SECRET`
-   - **Value:** Paste the secret you generated
-5. Click **"Add secret"**
-6. ✅ Secret is now saved
+2. Click **"Variables and secrets"**
+3. Add the following entries:
+   | Key | Value |
+   |-----|-------|
+   | `TRANSCRIPTION_WORKER_SECRET` | Output from Step 3 |
+   | `YOUTUBE_COOKIES` | Contents of `youtube-cookie-active.b64` |
+4. Click **"Add secret"** after each.
 
-### Step 5: Wait for Build (5-10 minutes)
+### Step 6: Wait for Build (5-10 minutes)
 
 1. Go to **"Logs"** tab in your Space
 2. You'll see the build progress:
@@ -90,7 +101,7 @@
 3. **Wait for:** "Application startup complete" message
 4. ⚠️ **First build takes 5-10 minutes** - grab a coffee!
 
-### Step 6: Get Your Space URL (30 seconds)
+### Step 7: Get Your Space URL (30 seconds)
 
 1. Once build completes, your Space URL will be:
    ```
@@ -98,7 +109,7 @@
    ```
 2. **Copy this URL** - you'll need it next
 
-### Step 7: Update Local Environment (2 minutes)
+### Step 8: Update Local Environment (2 minutes)
 
 1. **Open or create** `.env` in your project root:
    ```bash
@@ -117,7 +128,7 @@
 
 **Note:** This project uses `.env` (not `.env.local`) for environment variables.
 
-### Step 8: Test the Connection (2 minutes)
+### Step 9: Test the Connection (4 minutes)
 
 1. **Test worker health:**
    ```bash
@@ -125,26 +136,23 @@
    ```
    Should return: `{"status":"ok","model":"distil-whisper/distil-medium.en","device":"cpu"}`
 
-2. **Restart your Next.js server:**
+2. **Run the local connection script:**
    ```bash
-   # Stop current server (Ctrl+C), then:
-   npm run dev
+   node test_worker_connection.cjs
    ```
+   This pings `/` and `/transcribe` using `.env` credentials and prints any worker warnings.
 
-3. **Test in your app:**
-   - Queue a video for transcription
-   - Check browser console for errors
-   - Watch the progress panel update
+3. **Restart your Next.js server** and queue a video to confirm end-to-end behavior.
 
 ## ✅ Success Checklist
 
 - [ ] Space created and files uploaded
 - [ ] Build completed successfully (check Logs tab)
-- [ ] Secret added to Space settings
+- [ ] `TRANSCRIPTION_WORKER_SECRET` and `YOUTUBE_COOKIES` added
 - [ ] `.env` updated with URL and secret
 - [ ] Health endpoint returns `{"status":"ok"}`
-- [ ] Next.js app can connect to worker
-- [ ] Videos can be queued and processed
+- [ ] `node test_worker_connection.cjs` passes
+- [ ] Next.js app queues videos, transcripts render in modal
 
 ## Troubleshooting
 
