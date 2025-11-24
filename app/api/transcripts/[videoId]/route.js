@@ -48,6 +48,19 @@ export async function GET(request, { params }) {
       );
     }
 
+    // If video relation is missing, create a minimal video object
+    // This can happen if the Video record was deleted but Transcript remains
+    if (!transcript.video) {
+      console.warn(`[Transcript API] Video record missing for videoId ${videoId}, creating minimal video object`);
+      transcript.video = {
+        id: videoId,
+        title: 'Video',
+        channelTitle: 'Unknown',
+        publishedAt: new Date().toISOString(),
+        thumbnailUrl: '',
+      };
+    }
+
     // Return transcript with video metadata
     return NextResponse.json(transcript);
   } catch (error) {

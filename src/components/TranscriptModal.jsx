@@ -70,15 +70,18 @@ const TranscriptModal = ({ videoId, isOpen, onClose, video: providedVideo }) => 
       // Use video data from transcript if not provided
       if (data.video && !providedVideo) {
         setVideo(data.video);
-      } else if (!providedVideo && !data.video) {
-        // If no video data, create a minimal video object
+      } else if (providedVideo) {
+        // Use provided video if available
+        setVideo(providedVideo);
+      } else {
+        // If no video data, create a minimal video object so TranscriptViewer can render
         console.warn('[TranscriptModal] No video data available, creating minimal video object');
         setVideo({
           id: videoId,
-          title: 'Video',
-          channelTitle: 'Unknown',
-          publishedAt: new Date().toISOString(),
-          thumbnailUrl: '',
+          title: data.video?.title || 'Video',
+          channelTitle: data.video?.channelTitle || 'Unknown',
+          publishedAt: data.video?.publishedAt || new Date().toISOString(),
+          thumbnailUrl: data.video?.thumbnailUrl || '',
         });
       }
     } catch (err) {
