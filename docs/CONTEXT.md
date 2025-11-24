@@ -809,10 +809,143 @@ This structure should be updated whenever a new top-level concern is introduced 
 - ✅ Created `AUTOMATED_TRANSCRIPTION_UX.md`: Comprehensive workflow guide
 - ✅ Created `TRANSCRIPTION_WORKFLOW.md`: Manual workflow guide (for reference)
 
+## Phase 8: Performance & Optimization (v4.10.0+) - IN PROGRESS
+
+**Status:** Day 1 & Day 2 Complete - Observability Foundation & React Query Infrastructure
+
+### Day 1: Observability Foundation (v4.10.0) - ✅ COMPLETE
+
+**Implementation Summary:**
+- ✅ Sentry error tracking and performance monitoring integrated
+- ✅ Client-side error capture with session replay (`instrumentation-client.ts`)
+- ✅ Server-side error tracking (`instrumentation.js` + `sentry.server.config.js`)
+- ✅ Edge runtime monitoring (`sentry.edge.config.js`)
+- ✅ Global error boundary (`app/global-error.jsx`)
+- ✅ API route monitoring wrapper (`src/lib/api-monitoring.js`) - ready for integration
+- ✅ Prisma query monitoring via Client Extensions (`src/lib/prisma-monitoring.js`)
+- ✅ Source map support configured
+- ✅ Environment-based sampling rates (10% production, 100% development)
+
+**Configuration Files:**
+- `instrumentation.js` - Next.js instrumentation hook (loads server/edge configs)
+- `instrumentation-client.ts` - Client-side Sentry initialization with replay
+- `sentry.server.config.js` - Server-side Sentry initialization
+- `sentry.edge.config.js` - Edge runtime Sentry initialization
+- `app/global-error.jsx` - Global error boundary with Sentry integration
+- `next.config.js` - Wrapped with `withSentryConfig` for build-time integration
+
+**Technical Details:**
+- Prisma v6 Client Extensions used instead of deprecated `$use` middleware
+- ES module syntax (`import/export`) used throughout (project uses `"type": "module"`)
+- Next.js 16 instrumentation hooks properly configured
+- Router transition tracking (`onRouterTransitionStart`) enabled
+- Request error handling (`onRequestError`) enabled
+
+**Bugs Fixed During Setup:**
+1. **ES Module Compatibility:** Converted `next.config.js` from CommonJS to ES modules
+2. **Images Configuration:** Updated deprecated `images.domains` to `images.remotePatterns`
+3. **Prisma v6 Compatibility:** Replaced deprecated `$use` middleware with Client Extensions
+4. **Sentry Configuration:** Fixed instrumentation hooks and router tracking
+
+### Day 2: React Query Infrastructure (v4.10.1) - ✅ COMPLETE
+
+**Implementation Summary:**
+- ✅ React Query installed (`@tanstack/react-query@^5.90.10`)
+- ✅ QueryClient configured (`src/lib/react-query.js`)
+- ✅ QueryClientProvider integrated (`src/components/Providers.jsx`)
+- ✅ Test infrastructure created (`tests/setup-react-query.jsx`)
+- ✅ TDD pattern established for hook development
+- ✅ Search History hooks implemented (`src/hooks/useSearchHistoryQuery.js`)
+- ✅ Search History component migrated (`src/components/SearchHistory.jsx`)
+
+**TDD Approach:**
+- Tests written before implementation (Red-Green-Refactor cycle)
+- 7 comprehensive tests for `useSearchHistoryQuery` and `useSearchHistoryMutation`
+- All tests passing (93/93 total tests)
+
+**Component Migration:**
+- `SearchHistory.jsx` migrated from manual state management to React Query
+- Removed `useState` and `useEffect` for data fetching
+- Added automatic caching, loading states, and error handling
+- Query only runs when modal is open (performance optimization)
+
+**Bug Fixed: Duplicate Search History Entries**
+
+**Issue:** Single search appeared 3 times in search history due to race condition.
+
+**Root Cause:**
+- Multiple simultaneous API requests (React Strict Mode double renders or rapid clicks)
+- All requests checked for duplicates before any completed
+- All passed duplicate check and created entries
+
+**Fix Applied:**
+1. **Server-Side (Atomic Transaction):**
+   - Wrapped duplicate check and create/update in `prisma.$transaction()`
+   - Ensures only one request can create entry at a time
+   - Prevents race conditions at database level
+   - File: `app/api/search-history/route.js`
+
+2. **Client-Side (Prevent Duplicate Calls):**
+   - Added `!isLoadMore` check before saving history
+   - Prevents saving history when loading more results
+   - File: `src/hooks/useVideoSearch.js`
+
+**Verification:**
+- All 93 tests passing
+- Transaction ensures atomic operations
+- No more duplicate entries observed
+
+**Files Modified:**
+- `app/api/search-history/route.js` - Added transaction wrapper
+- `src/hooks/useVideoSearch.js` - Added `!isLoadMore` check
+
+**Next Steps:**
+- Migrate remaining components to React Query (Favorites, Collections, Transcription Queue)
+- Integrate API route monitoring (`withMonitoring` wrapper)
+- Implement optimistic updates for mutations
+
+### Known Issues & Resolutions
+
+**Issue: Duplicate Search History Entries**
+- **Status:** ✅ RESOLVED
+- **Date:** 2025-01-XX
+- **Description:** Single search appeared multiple times in history
+- **Root Cause:** Race condition in duplicate detection
+- **Resolution:** Atomic transaction + client-side prevention
+- **Files:** `app/api/search-history/route.js`, `src/hooks/useVideoSearch.js`
+
+**Issue: Prisma v6 Compatibility**
+- **Status:** ✅ RESOLVED
+- **Date:** 2025-01-XX
+- **Description:** `$use` middleware deprecated in Prisma v6
+- **Root Cause:** Prisma v6 uses Client Extensions instead of middleware
+- **Resolution:** Migrated to `prismaMonitoringExtension` using `$extends()`
+- **Files:** `src/lib/prisma-monitoring.js`, `src/lib/prisma.js`
+
+**Issue: ES Module Compatibility**
+- **Status:** ✅ RESOLVED
+- **Date:** 2025-01-XX
+- **Description:** `next.config.js` using CommonJS in ES module project
+- **Root Cause:** Project uses `"type": "module"` but config used `require()`
+- **Resolution:** Converted to ES module syntax (`import/export`)
+- **Files:** `next.config.js`
+
+**Issue: Sentry Configuration Warnings**
+- **Status:** ✅ RESOLVED
+- **Date:** 2025-01-XX
+- **Description:** Multiple Sentry configuration warnings
+- **Root Cause:** Missing instrumentation hooks and deprecated config files
+- **Resolution:** Created proper instrumentation files, removed deprecated `sentry.client.config.js`
+- **Files:** `instrumentation.js`, `instrumentation-client.ts`, `app/global-error.jsx`
+
 ## Open Topics / Future Work
 1. Phase 6 implementation (Transcription Worker MVP) - ✅ COMPLETE
 2. Phase 7 planning (Display transcripts UI/UX) - ✅ COMPLETE
 3. Automated Transcription Workflow - ✅ COMPLETE
-3. Transcription feature manual testing checklist
-4. Observability & performance monitoring post-clean cutover
-5. Break 6: Caching & State Management (React Query integration)
+4. Phase 8 Day 1: Observability Foundation - ✅ COMPLETE
+5. Phase 8 Day 2: React Query Infrastructure - ✅ COMPLETE
+6. Phase 8 Day 2+: Migrate remaining components to React Query (Favorites, Collections, Transcription Queue)
+7. Phase 8 Day 3+: Implement optimistic updates for mutations
+8. Phase 8 Day 4+: Integrate API route monitoring (`withMonitoring` wrapper)
+9. Transcription feature manual testing checklist
+10. Performance optimization based on observability metrics

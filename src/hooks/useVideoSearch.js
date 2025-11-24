@@ -54,27 +54,31 @@ export function useVideoSearch() {
         });
 
         // Save to search history (if query or channelName is provided)
-        const hasQuery = searchParams.query?.trim().length > 0;
-        const hasChannelName = searchParams.channelName?.trim().length > 0;
-        
-        if (hasQuery || hasChannelName) {
-          try {
-            // Save all search parameters to history
-            await saveSearchHistory({
-              query: searchParams.query,
-              channelName: searchParams.channelName,
-              startDate: searchParams.startDate,
-              endDate: searchParams.endDate,
-              duration: searchParams.duration,
-              language: searchParams.language,
-              order: searchParams.order,
-              maxResults: searchParams.maxResults,
-            });
-          } catch (error) {
-            // Silently handle errors - utility layer handles 401s gracefully
-            // Only log unexpected errors that aren't related to authentication
-            if (!error.message?.includes('Unauthorized') && !error.message?.includes('sign in')) {
-              console.warn('Failed to save search history:', error);
+        // Only save if this is a new search (not a load more)
+        if (!isLoadMore) {
+          const hasQuery = searchParams.query?.trim().length > 0;
+          const hasChannelName = searchParams.channelName?.trim().length > 0;
+          
+          if (hasQuery || hasChannelName) {
+            try {
+              // Save all search parameters to history
+              // The API route handles duplicate detection with transactions
+              await saveSearchHistory({
+                query: searchParams.query,
+                channelName: searchParams.channelName,
+                startDate: searchParams.startDate,
+                endDate: searchParams.endDate,
+                duration: searchParams.duration,
+                language: searchParams.language,
+                order: searchParams.order,
+                maxResults: searchParams.maxResults,
+              });
+            } catch (error) {
+              // Silently handle errors - utility layer handles 401s gracefully
+              // Only log unexpected errors that aren't related to authentication
+              if (!error.message?.includes('Unauthorized') && !error.message?.includes('sign in')) {
+                console.warn('Failed to save search history:', error);
+              }
             }
           }
         }

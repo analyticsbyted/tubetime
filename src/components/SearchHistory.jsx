@@ -1,47 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import { History, X, Clock, Loader2 } from 'lucide-react';
-import { getSearchHistory, formatHistoryTimestamp, clearSearchHistory } from '../utils/searchHistory';
+import { useState } from 'react';
+import { History, X, Clock, Loader2, AlertCircle, Trash2, Search } from 'lucide-react';
+import { useSearchHistoryQuery, useSearchHistoryMutation } from '../hooks/useSearchHistoryQuery';
+import { formatHistoryTimestamp } from '../utils/searchHistory';
 
 const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
-  const [history, setHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Local UI state
+  const [confirmClear, setConfirmClear] = useState(false);
 
-  // Load history when modal opens
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    let cancelled = false;
-    
-    const loadHistory = async () => {
-      setIsLoading(true);
-      try {
-        const loadedHistory = await getSearchHistory();
-        if (!cancelled) {
-          setHistory(loadedHistory);
-        }
-      } catch (error) {
-        console.error('Failed to load search history:', error);
-        if (!cancelled) {
-          setHistory([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    loadHistory();
-    
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen]);
+  // React Query Hooks
+  // Only fetch when modal is open (performance optimization)
+  const { 
+    data: history = [], 
+    isLoading, 
+    isError 
+  } = useSearchHistoryQuery({ 
+    enabled: isOpen, // Only fetch when modal is open
+    limit: 50 // Match the default limit from utils
+  });
 
-  if (!isOpen) return null;
+  const { clearHistory, deleteEntry } = useSearchHistoryMutation();
 
+  // Handle clear history with confirmation
+  const handleClearHistory = () => {
+    if (window.confirm('Clear all search history?')) {
+      clearHistory.mutate(null, {
+        onSuccess: () => {
+          setConfirmClear(false);
+          onClose();
+        },
+        onError: (error) => {
+          console.error('Failed to clear search history:', error);
+          // Still close modal even if API call fails
+          setConfirmClear(false);
+        },
+      });
+    }
+  };
+
+  // Handle delete single item
+  const handleDeleteItem = (e, id) => {
+    e.stopPropagation();
+    deleteEntry.mutate(id);
+  };
+
+  // Handle select search - maintain backward compatibility with existing signature
   const handleSelect = (entry) => {
-    // Pass all search parameters for full restoration
+    // Pass all search parameters for full restoration (maintains existing signature)
     onSelectSearch(
       entry.query || '',
       entry.startDate || '',
@@ -55,20 +59,8 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
     onClose();
   };
 
-  const handleClear = async () => {
-    if (window.confirm('Clear all search history?')) {
-      try {
-        await clearSearchHistory();
-        setHistory([]);
-        onClose();
-      } catch (error) {
-        console.error('Failed to clear search history:', error);
-        // Still clear local state even if API call fails
-        setHistory([]);
-        onClose();
-      }
-    }
-  };
+  // Don't render if modal is closed
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex justify-center items-start p-4 pt-20">
@@ -80,12 +72,32 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
           </h3>
           <div className="flex items-center gap-2">
             {history.length > 0 && (
-              <button
-                onClick={handleClear}
-                className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
-              >
-                Clear All
-              </button>
+              !confirmClear ? (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="text-xs text-zinc-400 hover:text-red-400 transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Clear All
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400">Are you sure?</span>
+                  <button
+                    onClick={handleClearHistory}
+                    disabled={clearHistory.isPending}
+                    className="text-xs font-medium text-red-500 hover:text-red-400 disabled:opacity-50"
+                  >
+                    {clearHistory.isPending ? 'Clearing...' : 'Yes, Clear'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )
             )}
             <button
               onClick={onClose}
@@ -102,24 +114,36 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
               <Loader2 className="w-12 h-12 mx-auto mb-4 opacity-20 animate-spin" />
               <p>Loading history...</p>
             </div>
+          ) : isError ? (
+            <div className="text-center py-12 text-red-400">
+              <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-20" />
+              <p className="text-sm">Failed to load history</p>
+              <p className="text-xs text-zinc-500 mt-2">Please try again later</p>
+            </div>
           ) : history.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
               <History className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p>No search history yet</p>
+              <p className="text-lg font-medium text-zinc-400">No search history</p>
+              <p className="text-sm">Your recent searches will appear here</p>
             </div>
           ) : (
             <div className="space-y-2">
               {history.map((entry, index) => {
                 const displayQuery = entry.query || entry.channelName || 'Channel search';
                 return (
-                  <button
+                  <div
                     key={entry.id || index}
                     onClick={() => handleSelect(entry)}
-                    className="w-full text-left p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700 hover:border-zinc-600"
+                    className="group flex items-center justify-between p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-all cursor-pointer border border-zinc-700 hover:border-zinc-600"
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="mt-1 min-w-[16px] shrink-0">
+                        <Search className="w-4 h-4 text-zinc-500 group-hover:text-red-500 transition-colors" />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-zinc-100 truncate">{displayQuery}</p>
+                        <p className="font-semibold text-zinc-100 truncate group-hover:text-white transition-colors">
+                          {displayQuery}
+                        </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400 flex-wrap">
                           {entry.channelName && entry.query && (
                             <span className="text-zinc-500">Channel: {entry.channelName}</span>
@@ -141,12 +165,22 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-zinc-500 shrink-0">
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 text-xs text-zinc-500">
                         <Clock className="w-3 h-3" />
                         {formatHistoryTimestamp(entry.timestamp || entry.createdAt)}
                       </div>
+                      <button
+                        onClick={(e) => handleDeleteItem(e, entry.id)}
+                        disabled={deleteEntry.isPending}
+                        className="p-1.5 rounded-md text-zinc-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                        title="Remove from history"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -158,4 +192,3 @@ const SearchHistory = ({ onSelectSearch, isOpen, onClose }) => {
 };
 
 export default SearchHistory;
-

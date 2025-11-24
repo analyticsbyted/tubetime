@@ -5,6 +5,130 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.1] - 2025-01-XX (Phase 8 Day 2)
+
+### Added
+
+- **React Query Infrastructure:**
+  - QueryClient configuration (`src/lib/react-query.js`)
+  - QueryClientProvider integrated into `src/components/Providers.jsx`
+  - Test infrastructure (`tests/setup-react-query.jsx`) for React Query testing
+  - Search History React Query hooks (`src/hooks/useSearchHistoryQuery.js`)
+  - TDD test suite for React Query hooks (7 tests)
+
+### Changed
+
+- **Search History Component:**
+  - Migrated `src/components/SearchHistory.jsx` from manual state management to React Query
+  - Removed `useState` and `useEffect` for data fetching
+  - Added automatic caching, loading states, and error handling
+  - Query only runs when modal is open (performance optimization)
+
+- **Search History API:**
+  - Added atomic transaction wrapper to prevent race conditions
+  - Fixed duplicate detection using `prisma.$transaction()`
+  - Prevents multiple simultaneous requests from creating duplicate entries
+
+- **Video Search Hook:**
+  - Added `!isLoadMore` check before saving search history
+  - Prevents saving history when loading more results
+
+### Fixed
+
+- **Duplicate Search History Entries:**
+  - Fixed race condition causing single search to appear multiple times
+  - Server-side: Wrapped duplicate check in atomic transaction
+  - Client-side: Prevented duplicate saves during pagination
+
+### Technical
+
+- **New Dependencies:**
+  - `@tanstack/react-query@^5.90.10`: Intelligent caching and state management
+
+- **New Hooks:**
+  - `useSearchHistoryQuery`: React Query hook for fetching search history
+  - `useSearchHistoryMutation`: React Query hook for search history mutations
+
+- **Test Infrastructure:**
+  - `tests/setup-react-query.jsx`: React Query test wrapper utilities
+  - `tests/hooks/__tests__/useSearchHistoryQuery.test.js`: TDD test suite
+
+### Documentation
+
+- Updated `PHASE8_IMPLEMENTATION_PLAN.md` with Day 2 completion status
+- Updated `CONTEXT.md` with Phase 8 progress and bug fixes
+
+### Notes
+
+- TDD pattern established for future hook development
+- All 93 tests passing (86 existing + 7 new React Query tests)
+- Search History component serves as reference implementation for remaining migrations
+
+## [4.10.0] - 2025-01-XX (Phase 8 Day 1)
+
+### Added
+
+- **Observability Foundation (Phase 8 Day 1):**
+  - Sentry error tracking and performance monitoring
+  - Client-side error capture with session replay
+  - Server-side error tracking for API routes
+  - Edge runtime monitoring support
+  - API route monitoring wrapper (`withMonitoring`) for slow request detection (>1000ms)
+  - Prisma query monitoring middleware for slow database query detection (>500ms)
+  - Source map support for better error debugging
+  - Environment-based sampling rates (10% production, 100% development)
+
+### Changed
+
+- **Build Configuration:**
+  - Wrapped `next.config.js` with `withSentryConfig` for automatic instrumentation
+  - Added Sentry webpack plugin for source map uploads
+
+- **Database Monitoring:**
+  - Integrated Prisma monitoring middleware into `src/lib/prisma.js`
+  - Automatic slow query logging for database operations
+
+### Technical
+
+- **New Dependencies:**
+  - `@sentry/nextjs@^10.26.0`: Comprehensive error tracking and performance monitoring
+
+- **New Utilities:**
+  - `src/lib/api-monitoring.js`: Higher-order function to wrap API routes with monitoring
+  - `src/lib/prisma-monitoring.js`: Middleware to log slow database queries
+
+- **Configuration Files:**
+  - `instrumentation.js`: Next.js instrumentation hook (loads server/edge configs)
+  - `instrumentation-client.ts`: Client-side Sentry initialization with replay
+  - `sentry.server.config.js`: Server-side Sentry initialization
+  - `sentry.edge.config.js`: Edge runtime Sentry initialization
+  - `app/global-error.jsx`: Global error boundary with Sentry integration
+  - `.sentryclirc`: Sentry CLI configuration for source map uploads (optional)
+
+### Environment Variables Required
+
+```env
+# Sentry Configuration (Required for error tracking)
+NEXT_PUBLIC_SENTRY_DSN="https://xxx@sentry.io/xxx"
+
+# Sentry Source Map Upload (Optional, for production builds)
+SENTRY_ORG="your-org"
+SENTRY_PROJECT="your-project"
+SENTRY_AUTH_TOKEN="your-auth-token"
+```
+
+### Documentation
+
+- Updated `PHASE8_IMPLEMENTATION_PLAN.md` with Day 1 completion status
+- Created `OBSERVABILITY_SETUP.md` guide
+- Added revert strategy documentation for Sentry removal if needed
+
+### Notes
+
+- Monitoring utilities are ready but not yet integrated into API routes (will be done in Day 2)
+- Prisma monitoring is automatically active for all database queries
+- Production sampling rates configured to minimize Sentry usage costs
+
 ## [4.9.0] - 2025-01-XX
 
 ### Added

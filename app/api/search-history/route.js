@@ -61,52 +61,57 @@ export async function POST(request) {
     const userId = await getUserId();
     const { query, channelName, startDate, endDate, duration, language, order, maxResults } = await request.json();
 
-    // Check for duplicate search within a short period (e.g., 1 minute)
-    const ONE_MINUTE_AGO = new Date(Date.now() - 60 * 1000);
-    const existingEntry = await prisma.searchHistory.findFirst({
-      where: {
-        userId,
-        query,
-        channelName,
-        startDate,
-        endDate,
-        duration,
-        language,
-        order,
-        maxResults,
-        createdAt: {
-          gte: ONE_MINUTE_AGO,
+    // Use a transaction to prevent race conditions when multiple requests come in simultaneously
+    const result = await prisma.$transaction(async (tx) => {
+      // Check for duplicate search within a short period (e.g., 1 minute)
+      const ONE_MINUTE_AGO = new Date(Date.now() - 60 * 1000);
+      const existingEntry = await tx.searchHistory.findFirst({
+        where: {
+          userId,
+          query: query || null,
+          channelName: channelName || null,
+          startDate: startDate || null,
+          endDate: endDate || null,
+          duration: duration || null,
+          language: language || null,
+          order: order || null,
+          maxResults: maxResults || null,
+          createdAt: {
+            gte: ONE_MINUTE_AGO,
+          },
         },
-      },
-    });
-
-    if (existingEntry) {
-      // If duplicate, update timestamp instead of creating new entry
-      const updatedEntry = await prisma.searchHistory.update({
-        where: { id: existingEntry.id },
-        data: { createdAt: new Date() },
       });
-      return NextResponse.json(updatedEntry, { status: 200 }); // Return 200 OK for update
-    }
 
-    const newEntry = await prisma.searchHistory.create({
-      data: {
-        userId,
-        query: query || null,
-        channelName: channelName || null,
-        startDate: startDate || null,
-        endDate: endDate || null,
-        duration: duration || null,
-        language: language || null,
-        order: order || null,
-        maxResults: maxResults || null,
-      },
+      if (existingEntry) {
+        // If duplicate, update timestamp instead of creating new entry
+        const updatedEntry = await tx.searchHistory.update({
+          where: { id: existingEntry.id },
+          data: { createdAt: new Date() },
+        });
+        return { entry: updatedEntry, isNew: false };
+      }
+
+      // Create new entry
+      const newEntry = await tx.searchHistory.create({
+        data: {
+          userId,
+          query: query || null,
+          channelName: channelName || null,
+          startDate: startDate || null,
+          endDate: endDate || null,
+          duration: duration || null,
+          language: language || null,
+          order: order || null,
+          maxResults: maxResults || null,
+        },
+      });
+      return { entry: newEntry, isNew: true };
     });
 
-    // Clean up old entries
+    // Clean up old entries (outside transaction for better performance)
     await cleanupSearchHistory(userId);
 
-    return NextResponse.json(newEntry, { status: 201 }); // Return 201 Created for new entry
+    return NextResponse.json(result.entry, { status: result.isNew ? 201 : 200 });
   } catch (error) {
     if (error.message === 'Unauthorized') {
       // Expected for unauthenticated users - don't log as error

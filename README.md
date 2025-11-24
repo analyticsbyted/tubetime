@@ -68,9 +68,13 @@ Key files for the worker:
 
 All project documentation now lives under `docs/`. Key references:
 
-- [CHANGELOG](./docs/CHANGELOG.md)
-- [CONTEXT](./docs/CONTEXT.md)
-- [MIGRATION_PLAN](./docs/MIGRATION_PLAN.md)
+- **[HANDOVER GUIDE](./docs/HANDOVER.md)** - **START HERE** - Quick start guide for new developers
+- **[LLM ONBOARDING PROMPT](./docs/LLM_ONBOARDING_PROMPT.md)** - **For LLM Assistants** - Ready-to-use onboarding prompt
+- [CHANGELOG](./docs/CHANGELOG.md) - Version history and changes
+- [CONTEXT](./docs/CONTEXT.md) - Complete project history and architectural decisions
+- [MIGRATION_PLAN](./docs/MIGRATION_PLAN.md) - Database migration strategy
+- [PHASE8_IMPLEMENTATION_PLAN](./docs/PHASE8_IMPLEMENTATION_PLAN.md) - Performance & optimization plan
+- [OBSERVABILITY_SETUP](./docs/OBSERVABILITY_SETUP.md) - Sentry configuration guide
 - [SECURITY](./docs/SECURITY.md) - Security considerations and best practices
 - [TROUBLESHOOTING](./docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [HUGGINGFACE_SPACE_SETUP](./docs/HUGGINGFACE_SPACE_SETUP.md) - Canonical worker deployment steps

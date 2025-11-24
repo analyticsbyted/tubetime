@@ -30,4 +30,11 @@ export default defineConfig([
       ],
     },
   },
+  {
+    // Node.js config files (Sentry configs, Next.js config, etc.)
+    files: ['sentry.*.config.js', 'next.config.js', '*.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])
