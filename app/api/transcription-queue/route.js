@@ -34,6 +34,22 @@ function isValidStatusTransition(currentStatus, newStatus) {
 // GET /api/transcription-queue - Get user's queue
 export async function GET(request) {
   try {
+    // Verify prisma is available
+    if (!prisma) {
+      console.error('Prisma client is not initialized');
+      return NextResponse.json(
+        { error: 'Database connection error. Please try again.' },
+        { status: 500 }
+      );
+    }
+    if (!prisma.transcriptionQueue) {
+      console.error('Prisma client structure:', Object.keys(prisma));
+      return NextResponse.json(
+        { error: 'Database model not available. Please restart the server.' },
+        { status: 500 }
+      );
+    }
+
     const userId = await getUserId();
     
     // Optional query params for filtering
@@ -86,6 +102,22 @@ function getDurationSecondsFromMetadata(metadata) {
 // POST /api/transcription-queue - Add videos to queue
 export async function POST(request) {
   try {
+    // Verify prisma is available
+    if (!prisma) {
+      console.error('Prisma client is not initialized');
+      return NextResponse.json(
+        { error: 'Database connection error. Please try again.' },
+        { status: 500 }
+      );
+    }
+    if (!prisma.transcriptionQueue) {
+      console.error('Prisma client structure:', Object.keys(prisma));
+      return NextResponse.json(
+        { error: 'Database model not available. Please restart the server.' },
+        { status: 500 }
+      );
+    }
+
     const userId = await getUserId();
     const { videoIds, priority = 0, videos: incomingVideos = [] } = await request.json();
 

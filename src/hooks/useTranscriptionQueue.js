@@ -35,6 +35,8 @@ export function useTranscriptionQueue(options = {}) {
         // Don't set queue to empty on auth errors - just log
         if (!err.message.includes('Unauthorized') && !err.message.includes('sign in')) {
           console.error('Error fetching transcription queue:', err);
+          // Don't throw - just log and keep previous state
+          // This prevents the hook from breaking on network errors
         }
       }
     } finally {

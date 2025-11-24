@@ -1,6 +1,9 @@
-import React from 'react';
-import { Loader2, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { Loader2, CheckCircle2, XCircle, Clock, FileText, Trash2, Play } from 'lucide-react';
 import { parseISODurationToSeconds } from '../utils/duration';
+import { clearQueue, removeFromQueue } from '../utils/transcriptionQueue';
+import { triggerWorker } from '../services/transcriptionWorkerService';
+import { toast } from 'sonner';
 
 /**
  * Estimates transcription time based on video duration
@@ -45,8 +48,11 @@ function formatTime(seconds) {
 export default function TranscriptionProgress({ 
   queueItems = [], 
   onViewTranscript,
-  onDismiss 
+  onDismiss,
+  onQueueUpdate, // Callback to refresh queue after changes
 }) {
+  const [isClearing, setIsClearing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   if (!queueItems || queueItems.length === 0) {
     return null;
   }
@@ -62,6 +68,74 @@ export default function TranscriptionProgress({
     return null;
   }
 
+  const handleClearPending = async () => {
+    if (pendingItems.length === 0) return;
+    
+    setIsClearing(true);
+    try {
+      const videoIds = pendingItems.map(item => item.videoId);
+      await removeFromQueue(videoIds);
+      toast.success(`Cleared ${pendingItems.length} pending item${pendingItems.length !== 1 ? 's' : ''} from queue.`);
+      if (onQueueUpdate) onQueueUpdate();
+    } catch (error) {
+      console.error('Failed to clear pending items:', error);
+      toast.error(error.message || 'Failed to clear pending items.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleClearFailed = async () => {
+    if (failedItems.length === 0) return;
+    
+    setIsClearing(true);
+    try {
+      const videoIds = failedItems.map(item => item.videoId);
+      await removeFromQueue(videoIds);
+      toast.success(`Cleared ${failedItems.length} failed item${failedItems.length !== 1 ? 's' : ''} from queue.`);
+      if (onQueueUpdate) onQueueUpdate();
+    } catch (error) {
+      console.error('Failed to clear failed items:', error);
+      toast.error(error.message || 'Failed to clear failed items.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleProcessNow = async () => {
+    if (pendingItems.length === 0) return;
+    
+    setIsProcessing(true);
+    try {
+      const result = await triggerWorker({ maxItems: 5 });
+      if (result.error) {
+        // Show detailed error message if available
+        const errorMsg = result.message || result.error || 'Failed to trigger worker.';
+        toast.error(errorMsg, {
+          duration: 5000,
+        });
+        console.error('Worker error:', result);
+      } else {
+        toast.success(`Processing ${result.processed || pendingItems.length} item(s)...`);
+        if (onQueueUpdate) {
+          // Wait a moment for the queue to update, then refresh
+          setTimeout(() => {
+            onQueueUpdate();
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to trigger worker:', error);
+      // Show more detailed error message
+      const errorMsg = error.data?.message || error.message || 'Failed to trigger worker.';
+      toast.error(errorMsg, {
+        duration: 5000,
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="fixed top-20 right-4 z-50 w-full max-w-md">
       <div className="bg-zinc-900/95 backdrop-blur-md border border-zinc-800 rounded-xl shadow-2xl p-4 space-y-3">
@@ -70,15 +144,50 @@ export default function TranscriptionProgress({
             <FileText className="w-4 h-4" />
             Transcription Queue
           </h3>
-          {onDismiss && (
-            <button
-              onClick={onDismiss}
-              className="text-zinc-400 hover:text-zinc-200 transition-colors"
-              aria-label="Dismiss"
-            >
-              ×
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {pendingItems.length > 0 && (
+              <>
+                <button
+                  onClick={handleProcessNow}
+                  disabled={isProcessing}
+                  className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded flex items-center gap-1 transition-colors"
+                  title="Process pending items now"
+                >
+                  <Play className="w-3 h-3" />
+                  Process
+                </button>
+                <button
+                  onClick={handleClearPending}
+                  disabled={isClearing}
+                  className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-50 text-white rounded flex items-center gap-1 transition-colors"
+                  title="Clear pending items"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Clear
+                </button>
+              </>
+            )}
+            {failedItems.length > 0 && pendingItems.length === 0 && (
+              <button
+                onClick={handleClearFailed}
+                disabled={isClearing}
+                className="text-xs px-2 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:opacity-50 text-zinc-200 rounded flex items-center gap-1 transition-colors"
+                title="Clear failed items"
+              >
+                <Trash2 className="w-3 h-3" />
+                Clear Failed
+              </button>
+            )}
+            {onDismiss && (
+              <button
+                onClick={onDismiss}
+                className="text-zinc-400 hover:text-zinc-200 transition-colors"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Processing Items */}

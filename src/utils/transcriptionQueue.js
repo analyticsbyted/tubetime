@@ -61,6 +61,15 @@ export const addToQueue = async (videoIds, priority = 0, videoMetadata = []) => 
 
   try {
     const result = await transcriptionQueueService.addToQueue(validIds, priority, videoMetadata);
+    // Handle skipped case (409 - already in queue)
+    if (result.skipped) {
+      return {
+        success: true,
+        added: 0,
+        skipped: validIds.length,
+        message: result.message || 'Video(s) already in queue',
+      };
+    }
     return {
       success: true,
       added: result.added || 0,

@@ -28,12 +28,23 @@ export const triggerWorker = async (options = {}) => {
         throw new Error('Unauthorized: Please sign in to process transcriptions.');
       }
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to trigger transcription worker.');
+      
+      // Preserve the full error object for better error handling
+      const error = new Error(errorData.error || 'Failed to trigger transcription worker.');
+      error.status = response.status;
+      error.data = errorData;
+      throw error;
     }
 
     return await response.json();
   } catch (error) {
     console.error('Error triggering transcription worker:', error);
+    // Provide more helpful error messages for network errors
+    if (error.message?.includes('fetch failed') || 
+        error.message?.includes('Failed to fetch') ||
+        error.name === 'TypeError' && error.message?.includes('fetch')) {
+      throw new Error('Network error: Unable to reach transcription service. Please check your connection and try again.');
+    }
     throw error;
   }
 };

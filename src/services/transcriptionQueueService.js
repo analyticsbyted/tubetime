@@ -69,7 +69,8 @@ export const addToQueue = async (videoIds, priority = 0, videos = []) => {
         throw new Error('Unauthorized: Please sign in to add videos to transcription queue.');
       }
       if (response.status === 409) {
-        throw new Error('One or more videos are already in the queue.');
+        // This is not really an error - just inform the user
+        return { success: true, skipped: true, message: 'Video(s) already in queue' };
       }
       if (response.status === 400) {
         const errorData = await response.json().catch(() => ({}));

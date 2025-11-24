@@ -313,12 +313,18 @@ function HomePageContent() {
           
           clearSelection();
         }
+      } else if (result.skipped) {
+        // Video already in queue - not an error, just inform user
+        toast.info(result.message || 'Video(s) already in queue');
       } else {
         toast.error(result.message);
       }
     } catch (error) {
       console.error('Failed to queue videos:', error);
-      toast.error(error.message || 'Failed to queue videos for transcription.');
+      // Don't show error for "already in queue" - it's handled above
+      if (!error.message?.includes('already in the queue')) {
+        toast.error(error.message || 'Failed to queue videos for transcription.');
+      }
     }
   };
 
@@ -328,13 +334,41 @@ function HomePageContent() {
     
     setIsProcessingQueue(true);
     try {
-      await triggerWorker({ maxItems: 5 });
+      const result = await triggerWorker({ maxItems: 5 });
+      
+      // Check if worker is not configured (503 status)
+      if (result.error && (result.error.includes('not configured') || result.status === 503)) {
+        toast.warning(
+          result.message || 
+          'Transcription worker is not configured. Videos are queued but will not be processed until the worker is set up. ' +
+          'Please contact the administrator or set up the worker using the documentation.'
+        );
+      } else if (result.processed > 0) {
+        toast.success(`Processing ${result.processed} video${result.processed !== 1 ? 's' : ''}...`);
+      } else if (result.processed === 0 && result.message) {
+        // No items to process
+        console.log('No items to process:', result.message);
+      }
+      
       // Refetch queue to get updated status
       await refetchQueue();
     } catch (error) {
-      // Silently handle errors - worker might not be configured
-      // Queue will still be processed by cron job or manual trigger
-      console.log('Auto-trigger worker failed (this is OK if worker is not configured):', error.message);
+      // Show user-friendly error message
+      if (error.status === 503 || error.message.includes('not configured')) {
+        toast.warning(
+          error.data?.message ||
+          'Transcription worker is not configured. Videos are queued but processing is unavailable. ' +
+          'Please set up the worker or contact the administrator.'
+        );
+      } else if (error.status === 401) {
+        toast.error('Please sign in to process transcriptions.');
+      } else if (error.message?.includes('fetch failed') || error.message?.includes('Network error')) {
+        // Network errors are often transient - don't show error toast
+        console.warn('Network error during auto-trigger (may be transient):', error.message);
+      } else {
+        console.error('Auto-trigger worker failed:', error);
+        // Don't show error toast for other errors - they might be transient
+      }
     } finally {
       setIsProcessingQueue(false);
     }
@@ -449,6 +483,7 @@ function HomePageContent() {
             // Optionally dismiss the progress panel
             // For now, we'll keep it visible when there are active items
           }}
+          onQueueUpdate={refetchQueue}
         />
         <EnhancedSearchBar 
           onSearch={handleSearch} 
