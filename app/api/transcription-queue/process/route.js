@@ -115,6 +115,43 @@ async function processQueueItem(queueItem) {
       processingDuration: typeof result.processingDuration === 'number' ? Math.round(result.processingDuration) : null,
     };
 
+    // Ensure Video record exists before creating transcript (required by foreign key)
+    const videoData = queueItem.video;
+    if (videoData) {
+      await prisma.video.upsert({
+        where: { id: queueItem.videoId },
+        update: {
+          // Update video metadata if it exists
+          title: videoData.title || undefined,
+          channelTitle: videoData.channelTitle || undefined,
+          publishedAt: videoData.publishedAt ? new Date(videoData.publishedAt) : undefined,
+          thumbnailUrl: videoData.thumbnailUrl || undefined,
+        },
+        create: {
+          id: queueItem.videoId,
+          title: videoData.title || 'Video',
+          channelTitle: videoData.channelTitle || 'Unknown',
+          publishedAt: videoData.publishedAt ? new Date(videoData.publishedAt) : new Date(),
+          thumbnailUrl: videoData.thumbnailUrl || '',
+        },
+      });
+      console.log(`[Process] Video record ensured for ${queueItem.videoId}`);
+    } else {
+      console.warn(`[Process] No video metadata available for ${queueItem.videoId}, creating minimal video record`);
+      // Create minimal video record if metadata is missing
+      await prisma.video.upsert({
+        where: { id: queueItem.videoId },
+        update: {},
+        create: {
+          id: queueItem.videoId,
+          title: 'Video',
+          channelTitle: 'Unknown',
+          publishedAt: new Date(),
+          thumbnailUrl: '',
+        },
+      });
+    }
+
     console.log(`[Process] Saving transcript to database for ${queueItem.videoId}`);
     const transcriptRecord = await prisma.transcript.create({
       data: transcriptData,
