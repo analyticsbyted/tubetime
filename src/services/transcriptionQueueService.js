@@ -27,7 +27,9 @@ export const getQueue = async (options = {}) => {
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Unauthorized: Please sign in to view transcription queue.');
+        // Return empty queue for unauthorized users instead of throwing
+        // This allows the UI to continue working
+        return { items: [], total: 0 };
       }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Failed to fetch transcription queue.');

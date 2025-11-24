@@ -31,13 +31,17 @@ export function useTranscriptionQueue(options = {}) {
       }
     } catch (err) {
       if (isMountedRef.current) {
-        setError(err.message);
-        // Don't set queue to empty on auth errors - just log
-        if (!err.message.includes('Unauthorized') && !err.message.includes('sign in')) {
-          console.error('Error fetching transcription queue:', err);
-          // Don't throw - just log and keep previous state
-          // This prevents the hook from breaking on network errors
+        // For auth errors, don't set error state - just return empty queue
+        // This prevents the hook from breaking when user is not signed in
+        if (err.message.includes('Unauthorized') || err.message.includes('sign in')) {
+          setQueue({ items: [], total: 0 });
+          setError(null); // Clear error for auth issues
+          return; // Exit early, don't log as error
         }
+        
+        setError(err.message);
+        console.error('Error fetching transcription queue:', err);
+        // Keep previous queue state on other errors
       }
     } finally {
       if (isMountedRef.current) {
