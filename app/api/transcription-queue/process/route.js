@@ -87,23 +87,39 @@ async function processQueueItem(queueItem) {
   });
 
   try {
+    console.log(`[Process] Starting transcription for video ${queueItem.videoId}`);
     const result = await transcribeVideo({
       videoId: queueItem.videoId,
       language: queueItem.video?.language || 'en',
     });
 
-    await prisma.transcript.create({
-      data: {
-        videoId: queueItem.videoId,
-        content: result.text || '',  // Use 'content' field to match schema
-        segments: result.segments || [],
-        language: result.language || null,
-        confidence: typeof result.confidence === 'number' ? result.confidence : null,
-        duration: typeof result.duration === 'number' ? Math.round(result.duration) : null,
-        wordCount: typeof result.wordCount === 'number' ? result.wordCount : null,
-        processingDuration: typeof result.processingDuration === 'number' ? Math.round(result.processingDuration) : null,
-      },
+    console.log(`[Process] Transcription completed for ${queueItem.videoId}:`, {
+      hasText: !!result.text,
+      textLength: result.text?.length || 0,
+      segmentsCount: result.segments?.length || 0,
+      language: result.language,
     });
+
+    if (!result.text || result.text.trim().length === 0) {
+      throw new Error('Transcription returned empty text');
+    }
+
+    const transcriptData = {
+      videoId: queueItem.videoId,
+      content: result.text || '',
+      segments: result.segments || [],
+      language: result.language || null,
+      confidence: typeof result.confidence === 'number' ? result.confidence : null,
+      duration: typeof result.duration === 'number' ? Math.round(result.duration) : null,
+      wordCount: typeof result.wordCount === 'number' ? result.wordCount : null,
+      processingDuration: typeof result.processingDuration === 'number' ? Math.round(result.processingDuration) : null,
+    };
+
+    console.log(`[Process] Saving transcript to database for ${queueItem.videoId}`);
+    const transcriptRecord = await prisma.transcript.create({
+      data: transcriptData,
+    });
+    console.log(`[Process] Transcript saved with ID: ${transcriptRecord.id}`);
 
     await markCompleted(queueItem.id, {
       processingStartedAt: queueItem.processingStartedAt ?? now,
@@ -115,6 +131,12 @@ async function processQueueItem(queueItem) {
       status: 'completed',
     };
   } catch (error) {
+    console.error(`[Process] Error processing ${queueItem.videoId}:`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+
     const isRetryable = error instanceof TranscriptionServiceError && error.retryable;
     const shouldRetry = isRetryable && (queueItem.retryCount || 0) < 2;
 
