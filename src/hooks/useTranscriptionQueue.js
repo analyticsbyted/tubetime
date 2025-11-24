@@ -39,9 +39,17 @@ export function useTranscriptionQueue(options = {}) {
           return; // Exit early, don't log as error
         }
         
-        setError(err.message);
-        console.error('Error fetching transcription queue:', err);
-        // Keep previous queue state on other errors
+        // For network errors, don't update error state - just log and keep previous queue
+        if (err.message?.includes('fetch failed') || 
+            err.name === 'TypeError' && err.message?.includes('fetch')) {
+          console.warn('Network error in queue polling (keeping previous state):', err.message);
+          // Don't set error state for network errors - they're often transient
+          // Keep previous queue state so UI doesn't break
+        } else {
+          setError(err.message);
+          console.error('Error fetching transcription queue:', err);
+        }
+        // Always keep previous queue state on errors
       }
     } finally {
       if (isMountedRef.current) {

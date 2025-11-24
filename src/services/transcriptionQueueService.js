@@ -43,7 +43,12 @@ export const getQueue = async (options = {}) => {
       total: data.total || 0,
     };
   } catch (error) {
-    console.error('Error fetching transcription queue:', error);
+    // Log more details for debugging
+    if (error.message?.includes('fetch failed') || error.name === 'TypeError') {
+      console.warn('Network error fetching transcription queue (may be transient):', error.message);
+    } else {
+      console.error('Error fetching transcription queue:', error);
+    }
     throw error;
   }
 };

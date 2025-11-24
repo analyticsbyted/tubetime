@@ -351,7 +351,13 @@ function HomePageContent() {
       }
       
       // Refetch queue to get updated status
-      await refetchQueue();
+      try {
+        await refetchQueue();
+      } catch (refetchError) {
+        // Don't show error for refetch failures - they're often transient
+        // The transcript is likely already saved, just the UI update failed
+        console.warn('Failed to refetch queue after processing (transcript may still be saved):', refetchError.message);
+      }
     } catch (error) {
       // Show user-friendly error message
       if (error.status === 503 || error.message.includes('not configured')) {
