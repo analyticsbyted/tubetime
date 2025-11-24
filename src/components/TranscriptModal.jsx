@@ -43,8 +43,26 @@ const TranscriptModal = ({ videoId, isOpen, onClose, video: providedVideo }) => 
     try {
       const data = await getTranscript(videoId);
       
+      console.log('[TranscriptModal] Fetched transcript data:', {
+        hasData: !!data,
+        hasContent: !!data?.content,
+        hasText: !!data?.text,
+        contentLength: data?.content?.length || 0,
+        textLength: data?.text?.length || 0,
+        hasVideo: !!data?.video,
+        hasSegments: !!data?.segments,
+        segmentsCount: data?.segments?.length || 0,
+      });
+      
       if (!data) {
         setError('Transcript not found for this video.');
+        return;
+      }
+
+      // Check if transcript has content
+      if (!data.content && !data.text) {
+        console.warn('[TranscriptModal] Transcript has no content or text');
+        setError('Transcript exists but has no content.');
         return;
       }
 
@@ -52,9 +70,19 @@ const TranscriptModal = ({ videoId, isOpen, onClose, video: providedVideo }) => 
       // Use video data from transcript if not provided
       if (data.video && !providedVideo) {
         setVideo(data.video);
+      } else if (!providedVideo && !data.video) {
+        // If no video data, create a minimal video object
+        console.warn('[TranscriptModal] No video data available, creating minimal video object');
+        setVideo({
+          id: videoId,
+          title: 'Video',
+          channelTitle: 'Unknown',
+          publishedAt: new Date().toISOString(),
+          thumbnailUrl: '',
+        });
       }
     } catch (err) {
-      console.error('Failed to fetch transcript:', err);
+      console.error('[TranscriptModal] Failed to fetch transcript:', err);
       setError(err.message || 'Failed to load transcript. Please try again.');
       toast.error('Failed to load transcript');
     } finally {
@@ -167,6 +195,19 @@ const TranscriptModal = ({ videoId, isOpen, onClose, video: providedVideo }) => 
             video={video}
             onClose={onClose}
           />
+        )}
+
+        {/* Debug: Show state if modal is open but no content */}
+        {!isLoading && !error && (!transcript || !video) && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center">
+              <p className="text-zinc-400 mb-2">Debug Info:</p>
+              <p className="text-zinc-500 text-sm">Has transcript: {transcript ? 'Yes' : 'No'}</p>
+              <p className="text-zinc-500 text-sm">Has video: {video ? 'Yes' : 'No'}</p>
+              <p className="text-zinc-500 text-sm">Has content: {transcript?.content ? 'Yes' : 'No'}</p>
+              <p className="text-zinc-500 text-sm">Content length: {transcript?.content?.length || 0}</p>
+            </div>
+          </div>
         )}
       </div>
     </div>
