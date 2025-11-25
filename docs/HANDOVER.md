@@ -1,8 +1,8 @@
 # TubeTime Project Handover Guide
 
 **Last Updated:** 2025-11-24  
-**Current Version:** v4.10.1  
-**Phase:** Phase 8 Day 2 (React Query Infrastructure Complete)
+**Current Version:** v4.10.5  
+**Phase:** Phase 8 Day 3 (React Query Migrations Complete, Optimistic Updates In Progress)
 
 > **For LLM Assistants:** See [`LLM_ONBOARDING_PROMPT.md`](./LLM_ONBOARDING_PROMPT.md) for a ready-to-use onboarding prompt.
 
@@ -83,18 +83,22 @@
 - **Phase 6:** Transcription Worker MVP (v4.7.0)
 - **Phase 7:** Display Transcripts UI/UX (v4.8.0)
 - **Phase 8 Day 1:** Observability Foundation (v4.10.0)
-- **Phase 8 Day 2:** React Query Infrastructure (v4.10.1)
+- **Phase 8 Day 2:** React Query Infrastructure & Component Migrations (v4.10.1-v4.10.4)
+  - Search History migration (v4.10.1)
+  - Favorites migration (v4.10.2)
+  - Collections migration (v4.10.3)
+  - Transcription Queue migration with smart polling (v4.10.4)
+- **Phase 8 Day 3:** Optimistic Updates (v4.10.5+)
+  - Favorites optimistic updates (v4.10.5) ✅
 
 ### 🚧 In Progress
 
-- **Phase 8 Day 2+:** Migrate remaining components to React Query
-  - Favorites component (TDD next)
-  - Collections component
-  - Transcription Queue component
+- **Phase 8 Day 3:** Optimistic updates for mutations
+  - Queue optimistic updates (next)
+  - Collections optimistic updates (planned)
 
 ### 📋 Planned
 
-- **Phase 8 Day 3+:** Optimistic updates for mutations
 - **Phase 8 Day 4+:** API route monitoring integration
 - **Phase 9:** Testing & Quality Assurance
 
@@ -146,17 +150,42 @@
 
 ## Recent Changes & Bug Fixes
 
+### v4.10.5 (Phase 8 Day 3)
+
+**Optimistic Updates for Favorites:**
+- Added instant UI updates for add, delete, and clear operations
+- Automatic error rollback to maintain data consistency
+- 4 new tests for optimistic update behavior
+- All 129 tests passing
+
+### v4.10.4 (Phase 8 Day 2)
+
+**Transcription Queue Migration:**
+- Migrated to React Query with smart polling
+- Only polls when active items exist (pending/processing)
+- Background polling continues even when window not focused
+- All 125 tests passing
+
+### v4.10.3 (Phase 8 Day 2)
+
+**Collections Migration:**
+- Migrated CollectionModal to React Query
+- Replaced manual isSaving state with React Query isPending
+- All 113 tests passing
+
+### v4.10.2 (Phase 8 Day 2)
+
+**Favorites Migration:**
+- Migrated FavoritesSidebar to React Query
+- Query only runs when sidebar is open (performance optimization)
+- All 101 tests passing
+
 ### v4.10.1 (Phase 8 Day 2)
 
-**Bug Fixed: Duplicate Search History Entries**
-- **Issue:** Single search appeared 3 times in history
-- **Root Cause:** Race condition in duplicate detection
-- **Fix:** Atomic transaction wrapper + client-side prevention
-- **Files:** `app/api/search-history/route.js`, `src/hooks/useVideoSearch.js`
-
-**Implementation:**
-- Added `prisma.$transaction()` wrapper to ensure atomic operations
-- Added `!isLoadMore` check to prevent duplicate saves during pagination
+**Search History Migration & Bug Fix:**
+- Migrated SearchHistory component to React Query
+- Fixed duplicate search history entries (race condition)
+- Added atomic transaction wrapper + client-side prevention
 - All 93 tests passing
 
 ### v4.10.0 (Phase 8 Day 1)

@@ -6,9 +6,9 @@
 
 ## Project Context
 
-You are working on **TubeTime**, a historical YouTube search engine built with Next.js 16 (App Router), React 19, and PostgreSQL. The project is currently in **Phase 8 Day 2** (React Query Infrastructure Complete).
+You are working on **TubeTime**, a historical YouTube search engine built with Next.js 16 (App Router), React 19, and PostgreSQL. The project is currently in **Phase 8 Day 3** (React Query Migrations Complete, Optimistic Updates In Progress).
 
-**Current Version:** v4.10.1  
+**Current Version:** v4.10.5  
 **Last Updated:** 2025-11-24
 
 ## Your First Steps
@@ -23,19 +23,22 @@ You are working on **TubeTime**, a historical YouTube search engine built with N
 
 ## Current Project Status
 
-### ✅ Completed (Phase 8 Day 1 & Day 2)
+### ✅ Completed (Phase 8 Day 1, Day 2, Day 3)
 
-- **Observability Foundation:** Sentry error tracking and performance monitoring fully configured
-- **React Query Infrastructure:** QueryClient configured, Provider integrated, test infrastructure created
-- **Search History Migration:** Component migrated to React Query hooks (reference implementation)
+- **Observability Foundation (Day 1):** Sentry error tracking and performance monitoring fully configured
+- **React Query Infrastructure (Day 2):** QueryClient configured, Provider integrated, test infrastructure created
+- **Component Migrations (Day 2):** All major components migrated to React Query:
+  - Search History (7 tests)
+  - Favorites (8 tests)
+  - Collections (12 tests)
+  - Transcription Queue (12 tests with smart polling)
+- **Optimistic Updates (Day 3):** Favorites optimistic updates implemented (4 tests)
 - **Bug Fixes:** Duplicate search history entries fixed (race condition resolved)
 
 ### 🚧 In Progress (Next Steps)
 
-- **Migrate Favorites Component:** Use TDD pattern to create `useFavoritesQuery` hooks
-- **Migrate Collections Component:** Convert to React Query hooks
-- **Migrate Transcription Queue Component:** Convert to React Query hooks
-- **Implement Optimistic Updates:** Add optimistic UI updates for mutations
+- **Optimistic Updates:** Queue and Collections optimistic updates (Favorites complete)
+- **Performance Optimization:** API route monitoring integration
 
 ## Important Technical Context
 
@@ -106,40 +109,31 @@ You are working on **TubeTime**, a historical YouTube search engine built with N
 
 ## Immediate Next Task
 
-**Migrate Favorites Component to React Query:**
+**Implement Optimistic Updates for Queue and Collections:**
 
-1. **Create Test File:**
+1. **Add Optimistic Updates to Queue:**
+   - Update `src/hooks/useTranscriptionQueueQuery.js`
+   - Add `onMutate`, `onError`, `onSuccess` to mutations
+   - Use `useFavoritesQuery.js` as reference
+
+2. **Add Optimistic Updates to Collections:**
+   - Update `src/hooks/useCollectionsQuery.js`
+   - Add optimistic updates to create, update, delete, add videos
+   - Use `useFavoritesQuery.js` as reference
+
+3. **Add Tests:**
+   - Test optimistic updates for each mutation
+   - Test error rollback behavior
+   - Use `useFavoritesQuery.test.js` as reference
+
+4. **Verify:**
    ```bash
-   tests/hooks/__tests__/useFavoritesQuery.test.js
-   ```
-
-2. **Follow TDD Pattern:**
-   - Write tests for `useFavoritesQuery` (fetch favorites)
-   - Write tests for `useFavoritesMutation` (add, delete, clear)
-   - Use `useSearchHistoryQuery.test.js` as reference
-
-3. **Create Hook:**
-   ```bash
-   src/hooks/useFavoritesQuery.js
-   ```
-   - Use `useSearchHistoryQuery.js` as reference
-   - Import from `@/services/favoritesService`
-
-4. **Migrate Component:**
-   ```bash
-   src/components/FavoritesSidebar.jsx
-   ```
-   - Replace manual state with React Query hooks
-   - Use `SearchHistory.jsx` as reference
-
-5. **Verify:**
-   ```bash
-   npm run test  # Should pass all tests
+   npm run test  # Should pass all tests (currently 129)
    ```
 
 ## Important Notes
 
-- **All tests must pass:** Current test suite has 93 tests, all passing
+- **All tests must pass:** Current test suite has 129 tests, all passing
 - **Follow TDD pattern:** Write tests before implementation
 - **Use reference implementations:** SearchHistory is the completed example
 - **Document changes:** Update relevant docs after completing tasks
@@ -170,5 +164,5 @@ Before starting work, ensure you understand:
 
 ---
 
-**Remember:** This project uses TDD, so always write tests first. Use SearchHistory migration as your reference implementation. All 93 tests must continue passing.
+**Remember:** This project uses TDD, so always write tests first. Use SearchHistory migration as your reference implementation for migrations, and use Favorites optimistic updates as reference for optimistic updates. All 129 tests must continue passing.
 
