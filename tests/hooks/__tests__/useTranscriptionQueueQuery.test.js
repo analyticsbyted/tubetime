@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { createWrapper, createTestQueryClient, createWrapperWithClient } from '../../setup-react-query.jsx';
@@ -294,6 +294,178 @@ describe('useTranscriptionQueueMutation (TDD)', () => {
         videos: []
       })
     ).rejects.toThrow('Failed to add to queue');
+  });
+
+  it('optimistically adds items to queue before server responds', async () => {
+    const mockResult = {
+      success: true,
+      added: 2,
+      skipped: 0,
+      message: 'Added 2 videos to transcription queue.'
+    };
+    // Delay the response to test optimistic update
+    addToQueue.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(mockResult), 100))
+    );
+
+    const queryClient = createTestQueryClient();
+    const initialQueue = { items: [], total: 0 };
+    queryClient.setQueryData(['transcription-queue'], initialQueue);
+
+    const { result } = renderHook(() => useTranscriptionQueueMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    const videos = [
+      { id: 'video1', title: 'Video 1', channelTitle: 'Channel 1', thumbnailUrl: 'thumb1.jpg' },
+      { id: 'video2', title: 'Video 2', channelTitle: 'Channel 2', thumbnailUrl: 'thumb2.jpg' }
+    ];
+
+    // Trigger mutation
+    let mutationPromise;
+    await act(async () => {
+      mutationPromise = result.current.addToQueue.mutateAsync({
+        videoIds: ['video1', 'video2'],
+        priority: 0,
+        videos
+      });
+    });
+
+    // Check cache - optimistic update should have happened
+    // onMutate runs synchronously before mutationFn
+    await waitFor(() => {
+      const cacheData = queryClient.getQueryData(['transcription-queue']);
+      expect(cacheData).toBeDefined();
+      expect(cacheData.items).toHaveLength(2);
+      expect(cacheData.total).toBe(2);
+      // Check optimistic items have temp IDs
+      expect(cacheData.items[0].id).toMatch(/^temp-/);
+      expect(cacheData.items[0].videoId).toBe('video1');
+      expect(cacheData.items[0].status).toBe('pending');
+      expect(cacheData.items[1].videoId).toBe('video2');
+    });
+
+    // Wait for mutation to complete
+    await mutationPromise;
+
+    // Verify mutation was called
+    expect(addToQueue).toHaveBeenCalledWith(['video1', 'video2'], 0, videos);
+  });
+
+  it('rolls back optimistic update on error', async () => {
+    const error = new Error('Failed to add to queue');
+    addToQueue.mockRejectedValue(error);
+
+    const queryClient = createTestQueryClient();
+    const initialQueue = { items: [], total: 0 };
+    queryClient.setQueryData(['transcription-queue'], initialQueue);
+
+    const { result } = renderHook(() => useTranscriptionQueueMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation that will fail
+    result.current.addToQueue.mutate({
+      videoIds: ['video1'],
+      priority: 0,
+      videos: []
+    });
+
+    // Wait for error to be handled
+    await waitFor(() => {
+      const cacheData = queryClient.getQueryData(['transcription-queue']);
+      // Should be rolled back to initial state
+      expect(cacheData.items).toHaveLength(0);
+      expect(cacheData.total).toBe(0);
+    });
+  });
+
+  it('optimistically removes items from queue before server responds', async () => {
+    const mockResult = {
+      success: true,
+      removed: 1,
+      message: 'Removed 1 video from queue.'
+    };
+    // Delay the response to test optimistic update
+    removeFromQueue.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(mockResult), 100))
+    );
+
+    const queryClient = createTestQueryClient();
+    const initialQueue = {
+      items: [
+        { id: '1', videoId: 'video1', status: 'pending' },
+        { id: '2', videoId: 'video2', status: 'processing' }
+      ],
+      total: 2
+    };
+    queryClient.setQueryData(['transcription-queue'], initialQueue);
+
+    const { result } = renderHook(() => useTranscriptionQueueMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation
+    let mutationPromise;
+    await act(async () => {
+      mutationPromise = result.current.removeFromQueue.mutateAsync(['video1']);
+    });
+
+    // Check cache - optimistic update should have happened
+    await waitFor(() => {
+      const cacheData = queryClient.getQueryData(['transcription-queue']);
+      expect(cacheData).toBeDefined();
+      expect(cacheData.items).toHaveLength(1);
+      expect(cacheData.total).toBe(1);
+      expect(cacheData.items[0].videoId).toBe('video2');
+    });
+
+    // Wait for mutation to complete
+    await mutationPromise;
+
+    // Verify mutation was called
+    expect(removeFromQueue).toHaveBeenCalledWith(['video1']);
+  });
+
+  it('optimistically clears queue before server responds', async () => {
+    // Delay the response to test optimistic update
+    clearQueue.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({ success: true, message: 'Queue cleared.' }), 100))
+    );
+
+    const queryClient = createTestQueryClient();
+    const initialQueue = {
+      items: [
+        { id: '1', videoId: 'video1', status: 'pending' },
+        { id: '2', videoId: 'video2', status: 'completed' }
+      ],
+      total: 2
+    };
+    queryClient.setQueryData(['transcription-queue'], initialQueue);
+
+    const { result } = renderHook(() => useTranscriptionQueueMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation
+    let mutationPromise;
+    await act(async () => {
+      mutationPromise = result.current.clearQueue.mutateAsync();
+    });
+
+    // Check cache - optimistic update should have happened
+    await waitFor(() => {
+      const cacheData = queryClient.getQueryData(['transcription-queue']);
+      expect(cacheData).toBeDefined();
+      expect(cacheData.items).toHaveLength(0);
+      expect(cacheData.total).toBe(0);
+    });
+
+    // Wait for mutation to complete
+    await mutationPromise;
+
+    // Verify mutation was called
+    expect(clearQueue).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -64,47 +64,168 @@ export function useTranscriptionQueueQuery(options = {}) {
 }
 
 /**
- * React Query hook for transcription queue mutations
+ * React Query hook for transcription queue mutations with optimistic updates
  * Provides methods to add, remove, and clear queue items
  * @returns {Object} Mutation objects for each operation
  */
 export function useTranscriptionQueueMutation() {
   const queryClient = useQueryClient();
 
-  // Add videos to queue
+  // Add videos to queue with optimistic update
   const addToQueueMutation = useMutation({
     mutationFn: ({ videoIds, priority = 0, videos = [] }) => 
       addToQueue(videoIds, priority, videos),
-    onSuccess: () => {
-      // Invalidate all transcription-queue queries to refetch
+    // Optimistic update: Add items to queue immediately
+    onMutate: async ({ videoIds, priority = 0, videos = [] }) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['transcription-queue'] });
+
+      // Snapshot previous value for rollback
+      const previousQueues = queryClient.getQueriesData({ queryKey: ['transcription-queue'] });
+
+      // Optimistically update cache - add pending items
+      queryClient.setQueriesData({ queryKey: ['transcription-queue'] }, (old = { items: [], total: 0 }) => {
+        const now = new Date().toISOString();
+        const optimisticItems = videoIds.map((videoId, index) => {
+          const videoMetadata = videos.find(v => v.id === videoId) || {};
+          return {
+            id: `temp-${Date.now()}-${index}`, // Temporary ID
+            videoId,
+            status: 'pending',
+            priority,
+            createdAt: now,
+            updatedAt: now,
+            video: {
+              id: videoId,
+              title: videoMetadata.title || `Video ${videoId}`,
+              channelTitle: videoMetadata.channelTitle || 'Unknown',
+              publishedAt: videoMetadata.publishedAt || now,
+              thumbnailUrl: videoMetadata.thumbnailUrl || '',
+            },
+          };
+        });
+
+        return {
+          items: [...old.items, ...optimisticItems],
+          total: old.total + optimisticItems.length,
+        };
+      });
+
+      // Return context for rollback
+      return { previousQueues, videoIds };
+    },
+    // On error, rollback to previous state
+    onError: (error, variables, context) => {
+      console.error('Failed to add to transcription queue:', error);
+      // Rollback all queries to previous state
+      if (context?.previousQueues) {
+        context.previousQueues.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    // On success, replace optimistic items with real ones from server
+    onSuccess: (result) => {
+      // The server response doesn't include full queue items, so we invalidate to refetch
+      // This ensures we get the real items with proper IDs
       queryClient.invalidateQueries({ queryKey: ['transcription-queue'] });
     },
-    onError: (error) => {
-      console.error('Failed to add to transcription queue:', error);
+    // Always refetch to ensure consistency
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['transcription-queue'] });
     },
   });
 
-  // Remove videos from queue
+  // Remove videos from queue with optimistic update
   const removeFromQueueMutation = useMutation({
     mutationFn: (videoIds) => removeFromQueue(videoIds),
+    // Optimistic update: Remove items from queue immediately
+    onMutate: async (videoIds) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['transcription-queue'] });
+
+      // Snapshot previous value for rollback
+      const previousQueues = queryClient.getQueriesData({ queryKey: ['transcription-queue'] });
+
+      // Optimistically remove from cache
+      queryClient.setQueriesData({ queryKey: ['transcription-queue'] }, (old = { items: [], total: 0 }) => {
+        const videoIdSet = new Set(videoIds);
+        const filteredItems = old.items.filter(item => !videoIdSet.has(item.videoId));
+        return {
+          items: filteredItems,
+          total: filteredItems.length,
+        };
+      });
+
+      // Return context for rollback
+      return { previousQueues, videoIds };
+    },
+    // On error, rollback to previous state
+    onError: (error, videoIds, context) => {
+      console.error('Failed to remove from transcription queue:', error);
+      // Rollback all queries to previous state
+      if (context?.previousQueues) {
+        context.previousQueues.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    // On success, invalidate to ensure consistency
     onSuccess: () => {
-      // Invalidate all transcription-queue queries to refetch
       queryClient.invalidateQueries({ queryKey: ['transcription-queue'] });
     },
-    onError: (error) => {
-      console.error('Failed to remove from transcription queue:', error);
+    // Always refetch to ensure consistency
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['transcription-queue'] });
     },
   });
 
-  // Clear queue
+  // Clear queue with optimistic update
   const clearQueueMutation = useMutation({
     mutationFn: (status) => clearQueue(status),
+    // Optimistic update: Clear cache immediately
+    onMutate: async (status) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['transcription-queue'] });
+
+      // Snapshot previous value for rollback
+      const previousQueues = queryClient.getQueriesData({ queryKey: ['transcription-queue'] });
+
+      // Optimistically clear cache
+      if (status) {
+        // Clear only items with specific status
+        queryClient.setQueriesData({ queryKey: ['transcription-queue'] }, (old = { items: [], total: 0 }) => {
+          const filteredItems = old.items.filter(item => item.status !== status);
+          return {
+            items: filteredItems,
+            total: filteredItems.length,
+          };
+        });
+      } else {
+        // Clear all items
+        queryClient.setQueriesData({ queryKey: ['transcription-queue'] }, { items: [], total: 0 });
+      }
+
+      // Return context for rollback
+      return { previousQueues, status };
+    },
+    // On error, rollback to previous state
+    onError: (error, status, context) => {
+      console.error('Failed to clear transcription queue:', error);
+      // Rollback all queries to previous state
+      if (context?.previousQueues) {
+        context.previousQueues.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    // On success, invalidate to ensure consistency
     onSuccess: () => {
-      // Invalidate all transcription-queue queries to refetch
       queryClient.invalidateQueries({ queryKey: ['transcription-queue'] });
     },
-    onError: (error) => {
-      console.error('Failed to clear transcription queue:', error);
+    // Always refetch to ensure consistency
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['transcription-queue'] });
     },
   });
 

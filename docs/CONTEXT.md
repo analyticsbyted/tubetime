@@ -870,12 +870,12 @@ This structure should be updated whenever a new top-level concern is introduced 
 
 **Completed:**
 - ✅ Favorites optimistic updates (add, delete, clear)
-- ✅ Error rollback on mutation failures
-- ✅ TDD test coverage for optimistic updates (4 tests)
+- ✅ Transcription Queue optimistic updates (add, remove, clear)
+- ✅ Error rollback on mutation failures for both components
+- ✅ TDD test coverage for optimistic updates (8 tests total: 4 Favorites + 4 Queue)
 
 **In Progress:**
-- 🚧 Queue optimistic updates (next)
-- 🚧 Collections optimistic updates (planned)
+- 🚧 Collections optimistic updates (next)
 
 **Next Steps:**
 - 📋 Performance optimization and monitoring integration
@@ -966,8 +966,8 @@ This structure should be updated whenever a new top-level concern is introduced 
 3. Automated Transcription Workflow - ✅ COMPLETE
 4. Phase 8 Day 1: Observability Foundation - ✅ COMPLETE
 5. Phase 8 Day 2: React Query Infrastructure - ✅ COMPLETE
-6. Phase 8 Day 2+: Migrate remaining components to React Query (Favorites, Collections, Transcription Queue)
-7. Phase 8 Day 3+: Implement optimistic updates for mutations
+6. Phase 8 Day 2+: Migrate remaining components to React Query (Favorites, Collections, Transcription Queue) - ✅ COMPLETE
+7. Phase 8 Day 3+: Implement optimistic updates for mutations - ✅ IN PROGRESS (Favorites & Queue complete, Collections next)
 8. Phase 8 Day 4+: Integrate API route monitoring (`withMonitoring` wrapper)
 9. Transcription feature manual testing checklist
 10. Performance optimization based on observability metrics

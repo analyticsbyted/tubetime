@@ -5,6 +5,44 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.6] - 2025-11-24 (Phase 8 Day 3)
+
+### Added
+
+- **Optimistic Updates for Transcription Queue:**
+  - Added optimistic updates to `useTranscriptionQueueMutation` hook
+  - Queue items appear/disappear instantly in UI before server responds
+  - Automatic rollback on error to maintain data consistency
+  - TDD test suite expanded with 4 new optimistic update tests
+
+### Changed
+
+- **Transcription Queue Mutations:**
+  - `addToQueue`: Optimistically adds items to cache with temporary IDs, status 'pending'
+  - `removeFromQueue`: Optimistically removes items from cache immediately
+  - `clearQueue`: Optimistically clears cache immediately (supports status filter)
+  - All mutations include error rollback to restore previous state on failure
+
+### Technical
+
+- **Optimistic Update Pattern:**
+  - `onMutate`: Snapshot previous state and optimistically update cache
+  - `onError`: Rollback to previous state if mutation fails
+  - `onSuccess`: Invalidate queries to fetch real data from server
+  - `onSettled`: Always invalidate queries to ensure consistency
+
+- **Test Infrastructure:**
+  - Added 4 new tests for optimistic update behavior
+  - Tests verify cache updates happen before server response
+  - Tests verify rollback on error for all mutation types
+
+### Notes
+
+- Optimistic updates make queue operations feel instant and responsive
+- Error handling ensures data consistency even if mutations fail
+- All 133 tests passing (129 previous + 4 new optimistic update tests)
+- Transcription Queue now provides instant feedback to users
+
 ## [4.10.5] - 2025-11-24 (Phase 8 Day 3)
 
 ### Added
