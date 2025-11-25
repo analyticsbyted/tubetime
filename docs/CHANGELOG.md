@@ -5,6 +5,42 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.3] - 2025-11-24 (Phase 8 Day 2)
+
+### Added
+
+- **Collections React Query Migration:**
+  - Collections React Query hooks (`src/hooks/useCollectionsQuery.js`)
+  - TDD test suite for Collections hooks (12 tests)
+  - `useCollectionsQuery`: Hook for fetching all collections
+  - `useCollectionQuery`: Hook for fetching a single collection by ID
+  - `useCollectionsMutation`: Hook for create, update, delete, and add videos operations
+
+### Changed
+
+- **Collections Component:**
+  - Migrated `src/components/CollectionModal.jsx` from manual state management to React Query
+  - Replaced manual `isSaving` state with React Query `isPending` states
+  - Replaced async `handleSave` function with React Query mutations
+  - Added automatic cache invalidation after mutations
+  - Improved error handling with React Query error callbacks
+
+### Technical
+
+- **New Hooks:**
+  - `useCollectionsQuery`: React Query hook for fetching all collections
+  - `useCollectionQuery`: React Query hook for fetching a single collection
+  - `useCollectionsMutation`: React Query hook for collections mutations (create, update, delete, add videos)
+
+- **Test Infrastructure:**
+  - `tests/hooks/__tests__/useCollectionsQuery.test.js`: TDD test suite (12 tests)
+
+### Notes
+
+- TDD pattern successfully applied to Collections migration
+- All 113 tests passing (101 original + 12 new Collections tests)
+- Collections component migration follows same pattern as Search History and Favorites
+
 ## [4.10.2] - 2025-11-24 (Phase 8 Day 2)
 
 ### Added

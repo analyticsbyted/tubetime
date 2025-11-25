@@ -2,55 +2,57 @@ import React, { useState } from 'react';
 import { Save, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
-import { createCollection, addVideosToCollection } from '../services/collectionsService';
+import { useCollectionsMutation } from '../hooks/useCollectionsQuery';
 
 const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
   const [collectionName, setCollectionName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const { data: session, status } = useSession();
+  const { createCollection, addVideos } = useCollectionsMutation();
 
   if (!isOpen) return null;
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!collectionName.trim()) {
       toast.error('Please enter a collection name');
       return;
     }
 
-    setIsSaving(true);
     const trimmedName = collectionName.trim();
-    const videoIdsArray = Array.from(selectedIds);
 
     // Require authentication for database-only operations
     if (!session || status === 'loading') {
       toast.error('Please sign in to save collections.');
-      setIsSaving(false);
       return;
     }
 
-    try {
-      // Database-only: Create collection and add videos
-      const collection = await createCollection(trimmedName);
-      
-      // Add videos to collection
-      const addResult = await addVideosToCollection(collection.id, selectedVideos);
-      
-      if (addResult.failed > 0) {
-        toast.warning(
-          `Collection created, but ${addResult.failed} video(s) failed to add. ${addResult.success} video(s) added successfully.`
+    // Create collection first, then add videos
+    createCollection.mutate(trimmedName, {
+      onSuccess: (collection) => {
+        // After collection is created, add videos to it
+        addVideos.mutate(
+          { collectionId: collection.id, videos: selectedVideos },
+          {
+            onSuccess: (addResult) => {
+              if (addResult.failed > 0) {
+                toast.warning(
+                  `Collection created, but ${addResult.failed} video(s) failed to add. ${addResult.success} video(s) added successfully.`
+                );
+              } else {
+                toast.success(`Collection "${trimmedName}" saved successfully!`);
+              }
+              setCollectionName('');
+              onClose();
+            },
+            onError: (error) => {
+              toast.error(error.message || 'Failed to add videos to collection. Please try again.');
+            },
+          }
         );
-      } else {
-        toast.success(`Collection "${trimmedName}" saved successfully!`);
-      }
-
-      setCollectionName('');
-      onClose();
-    } catch (error) {
-      console.error('Failed to save collection:', error);
-      toast.error(error.message || 'Failed to save collection. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
+      },
+      onError: (error) => {
+        toast.error(error.message || 'Failed to save collection. Please try again.');
+      },
+    });
   };
 
   return (
@@ -103,17 +105,17 @@ const CollectionModal = ({ isOpen, onClose, selectedVideos, selectedIds }) => {
           <div className="flex justify-end gap-2">
             <button
               onClick={onClose}
-              disabled={isSaving}
+              disabled={createCollection.isPending || addVideos.isPending}
               className="px-4 py-2 text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              disabled={!collectionName.trim() || isSaving || status === 'loading'}
+              disabled={!collectionName.trim() || createCollection.isPending || addVideos.isPending || status === 'loading'}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-zinc-100 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {isSaving ? (
+              {(createCollection.isPending || addVideos.isPending) ? (
                 <>
                   <div className="w-4 h-4 border-2 border-zinc-100 border-t-transparent rounded-full animate-spin" />
                   Saving...

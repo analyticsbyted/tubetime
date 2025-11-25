@@ -861,10 +861,12 @@ This structure should be updated whenever a new top-level concern is introduced 
 - ✅ Search History component migrated (`src/components/SearchHistory.jsx`) - 7 tests
 - ✅ Favorites hooks implemented (`src/hooks/useFavoritesQuery.js`)
 - ✅ Favorites component migrated (`src/components/FavoritesSidebar.jsx`) - 8 tests
+- ✅ Collections hooks implemented (`src/hooks/useCollectionsQuery.js`)
+- ✅ Collections component migrated (`src/components/CollectionModal.jsx`) - 12 tests
 
 **In Progress:**
-- 🚧 Collections component migration (next)
-- 📋 Transcription Queue component migration (planned)
+- 📋 Transcription Queue component migration (next)
+- 📋 Optimistic Updates implementation (planned)
 
 **TDD Approach:**
 - Tests written before implementation (Red-Green-Refactor cycle)
