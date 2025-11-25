@@ -1,52 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { X, Star, Search, Users, Trash2, Clock, ChevronRight } from 'lucide-react';
-import { getFavorites, deleteFavorite } from '../utils/favorites';
+import React from 'react';
+import { X, Star, Search, Users, Trash2, Clock, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import { useFavoritesQuery, useFavoritesMutation } from '../hooks/useFavoritesQuery';
 import { formatHistoryTimestamp } from '../utils/searchHistory';
 
 const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
-  const [favorites, setFavorites] = useState([]);
+  // React Query Hooks
+  // Only fetch when sidebar is open (performance optimization)
+  const { 
+    data: favorites = [], 
+    isLoading, 
+    isError 
+  } = useFavoritesQuery({ 
+    enabled: isOpen // Only fetch when sidebar is open
+  });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { deleteFavorite } = useFavoritesMutation();
 
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    let cancelled = false;
-    
-    const loadFavorites = async () => {
-      setIsLoading(true);
-      try {
-        const favs = await getFavorites();
-        if (!cancelled) {
-          setFavorites(favs);
-        }
-      } catch (error) {
-        console.error('Failed to load favorites:', error);
-        if (!cancelled) {
-          setFavorites([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    loadFavorites();
-    
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen]);
-
-  const handleDelete = async (e, favoriteId) => {
+  const handleDelete = (e, favoriteId) => {
     e.stopPropagation();
-    try {
-      await deleteFavorite(favoriteId);
-      await loadFavorites(); // Reload after deletion
-    } catch (error) {
-      console.error('Failed to delete favorite:', error);
-    }
+    deleteFavorite.mutate(favoriteId);
   };
 
   const handleSelect = (favorite) => {
@@ -93,10 +65,14 @@ const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {isLoading ? (
             <div className="text-center py-12 text-zinc-500">
-              <div className="w-12 h-12 mx-auto mb-4 opacity-20 animate-spin">
-                <Star className="w-12 h-12" />
-              </div>
+              <Loader2 className="w-12 h-12 mx-auto mb-4 opacity-20 animate-spin" />
               <p className="text-sm">Loading favorites...</p>
+            </div>
+          ) : isError ? (
+            <div className="text-center py-12 text-red-400">
+              <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-20" />
+              <p className="text-sm">Failed to load favorites</p>
+              <p className="text-xs text-zinc-500 mt-2">Please try again later</p>
             </div>
           ) : favorites.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
@@ -151,7 +127,8 @@ const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
                             <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
                             <button
                               onClick={(e) => handleDelete(e, favorite.id)}
-                              className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all p-1"
+                              disabled={deleteFavorite.isPending}
+                              className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all p-1 disabled:opacity-50"
                               title="Delete favorite"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -196,7 +173,8 @@ const FavoritesSidebar = ({ isOpen, onClose, onSelectFavorite }) => {
                             <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
                             <button
                               onClick={(e) => handleDelete(e, favorite.id)}
-                              className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all p-1"
+                              disabled={deleteFavorite.isPending}
+                              className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all p-1 disabled:opacity-50"
                               title="Delete favorite"
                             >
                               <Trash2 className="w-3 h-3" />

@@ -5,7 +5,41 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.10.1] - 2025-01-XX (Phase 8 Day 2)
+## [4.10.2] - 2025-11-24 (Phase 8 Day 2)
+
+### Added
+
+- **Favorites React Query Migration:**
+  - Favorites React Query hooks (`src/hooks/useFavoritesQuery.js`)
+  - TDD test suite for Favorites hooks (8 tests)
+  - `useFavoritesQuery`: Hook for fetching favorites with type filtering
+  - `useFavoritesMutation`: Hook for add, delete, and clear operations
+
+### Changed
+
+- **Favorites Component:**
+  - Migrated `src/components/FavoritesSidebar.jsx` from manual state management to React Query
+  - Removed `useState` and `useEffect` for data fetching
+  - Added automatic caching, loading states, and error handling
+  - Query only runs when sidebar is open (performance optimization)
+  - Improved error handling with error state UI
+
+### Technical
+
+- **New Hooks:**
+  - `useFavoritesQuery`: React Query hook for fetching favorites
+  - `useFavoritesMutation`: React Query hook for favorites mutations (add, delete, clear)
+
+- **Test Infrastructure:**
+  - `tests/hooks/__tests__/useFavoritesQuery.test.js`: TDD test suite (8 tests)
+
+### Notes
+
+- TDD pattern successfully applied to Favorites migration
+- All 101 tests passing (93 original + 8 new Favorites tests)
+- Favorites component migration follows same pattern as Search History
+
+## [4.10.1] - 2025-11-24 (Phase 8 Day 2)
 
 ### Added
 
@@ -57,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated `PHASE8_IMPLEMENTATION_PLAN.md` with Day 2 completion status
 - Updated `CONTEXT.md` with Phase 8 progress and bug fixes
+- Updated placeholder dates to 2025-11-24 in documentation files
 
 ### Notes
 

@@ -847,7 +847,7 @@ This structure should be updated whenever a new top-level concern is introduced 
 3. **Prisma v6 Compatibility:** Replaced deprecated `$use` middleware with Client Extensions
 4. **Sentry Configuration:** Fixed instrumentation hooks and router tracking
 
-### Day 2: React Query Infrastructure (v4.10.1) - ✅ COMPLETE
+### Day 2: React Query Infrastructure (v4.10.1+) - ✅ IN PROGRESS
 
 **Implementation Summary:**
 - ✅ React Query installed (`@tanstack/react-query@^5.90.10`)
@@ -855,8 +855,16 @@ This structure should be updated whenever a new top-level concern is introduced 
 - ✅ QueryClientProvider integrated (`src/components/Providers.jsx`)
 - ✅ Test infrastructure created (`tests/setup-react-query.jsx`)
 - ✅ TDD pattern established for hook development
+
+**Completed Migrations:**
 - ✅ Search History hooks implemented (`src/hooks/useSearchHistoryQuery.js`)
-- ✅ Search History component migrated (`src/components/SearchHistory.jsx`)
+- ✅ Search History component migrated (`src/components/SearchHistory.jsx`) - 7 tests
+- ✅ Favorites hooks implemented (`src/hooks/useFavoritesQuery.js`)
+- ✅ Favorites component migrated (`src/components/FavoritesSidebar.jsx`) - 8 tests
+
+**In Progress:**
+- 🚧 Collections component migration (next)
+- 📋 Transcription Queue component migration (planned)
 
 **TDD Approach:**
 - Tests written before implementation (Red-Green-Refactor cycle)
