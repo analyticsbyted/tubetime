@@ -5,6 +5,43 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.4] - 2025-11-24 (Phase 8 Day 2)
+
+### Added
+
+- **Transcription Queue React Query Migration:**
+  - Transcription Queue React Query hooks (`src/hooks/useTranscriptionQueueQuery.js`)
+  - TDD test suite for Transcription Queue hooks (12 tests)
+  - `useTranscriptionQueueQuery`: Hook for fetching queue with smart polling
+  - `useTranscriptionQueueMutation`: Hook for add, remove, and clear operations
+  - Smart polling: Only polls when there are active items (pending or processing)
+  - Background polling: Continues polling even when window is not focused
+
+### Changed
+
+- **Transcription Queue Hook:**
+  - Migrated `src/hooks/useTranscriptionQueue.js` from manual polling to React Query
+  - Replaced manual setTimeout polling with React Query's `refetchInterval`
+  - Implemented smart polling that stops when all items are completed/failed
+  - Maintains backward compatibility with existing component usage
+  - Improved error handling with graceful degradation
+
+### Technical
+
+- **New Hooks:**
+  - `useTranscriptionQueueQuery`: React Query hook for fetching queue with smart polling
+  - `useTranscriptionQueueMutation`: React Query hook for queue mutations (add, remove, clear)
+
+- **Test Infrastructure:**
+  - `tests/hooks/__tests__/useTranscriptionQueueQuery.test.js`: TDD test suite (12 tests)
+
+### Notes
+
+- TDD pattern successfully applied to Transcription Queue migration
+- All 125 tests passing (113 original + 12 new Transcription Queue tests)
+- Smart polling reduces unnecessary API calls when queue is idle
+- Transcription Queue migration completes all major component migrations
+
 ## [4.10.3] - 2025-11-24 (Phase 8 Day 2)
 
 ### Added

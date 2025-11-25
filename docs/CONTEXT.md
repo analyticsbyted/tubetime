@@ -863,10 +863,12 @@ This structure should be updated whenever a new top-level concern is introduced 
 - ✅ Favorites component migrated (`src/components/FavoritesSidebar.jsx`) - 8 tests
 - ✅ Collections hooks implemented (`src/hooks/useCollectionsQuery.js`)
 - ✅ Collections component migrated (`src/components/CollectionModal.jsx`) - 12 tests
+- ✅ Transcription Queue hooks implemented (`src/hooks/useTranscriptionQueueQuery.js`)
+- ✅ Transcription Queue hook migrated (`src/hooks/useTranscriptionQueue.js`) - 12 tests
 
-**In Progress:**
-- 📋 Transcription Queue component migration (next)
+**Next Steps:**
 - 📋 Optimistic Updates implementation (planned)
+- 📋 Performance optimization and monitoring integration
 
 **TDD Approach:**
 - Tests written before implementation (Red-Green-Refactor cycle)
