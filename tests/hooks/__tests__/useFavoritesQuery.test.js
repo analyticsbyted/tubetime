@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { createWrapper, createTestQueryClient, createWrapperWithClient } from '../../setup-react-query.jsx';
@@ -200,6 +200,159 @@ describe('useFavoritesMutation (TDD)', () => {
         data: { query: 'test' }
       })
     ).rejects.toThrow('Failed to create favorite');
+  });
+
+  it('optimistically adds favorite to cache before server responds', async () => {
+    const mockFavorite = { 
+      id: '3', 
+      name: 'New Favorite',
+      type: 'search',
+      data: { query: 'new search' },
+      createdAt: '2025-01-03T00:00:00Z',
+      updatedAt: '2025-01-03T00:00:00Z'
+    };
+    // Delay the response to test optimistic update
+    createFavorite.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(mockFavorite), 100))
+    );
+
+    const queryClient = createTestQueryClient();
+    const initialFavorites = [{ id: '1', name: 'Old Favorite', type: 'search' }];
+    queryClient.setQueryData(['favorites'], initialFavorites);
+    queryClient.setQueryData(['favorites', 'search'], initialFavorites);
+    queryClient.setQueryData(['favorites', 'channel'], []);
+
+    const { result } = renderHook(() => useFavoritesMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation
+    let mutationPromise;
+    await act(async () => {
+      mutationPromise = result.current.addFavorite.mutateAsync({
+        name: 'New Favorite',
+        type: 'search',
+        data: { query: 'new search' }
+      });
+    });
+
+    // Check cache - optimistic update should have happened
+    // onMutate runs synchronously before mutationFn
+    await waitFor(() => {
+      const cachedData = queryClient.getQueryData(['favorites']);
+      expect(cachedData).toBeDefined();
+      expect(cachedData).toHaveLength(2);
+      expect(cachedData[1].name).toBe('New Favorite');
+      expect(cachedData[1].id).toMatch(/^temp-/); // Temporary ID
+    });
+
+    // Wait for mutation to complete
+    await mutationPromise;
+
+    // Verify mutation was called
+    expect(createFavorite).toHaveBeenCalledWith('New Favorite', 'search', { query: 'new search' });
+    
+    // Note: After onSettled invalidates queries, cache may be cleared in test environment
+    // The important part is that optimistic update happened before server response
+  });
+
+  it('rolls back optimistic update on error', async () => {
+    const error = new Error('Failed to create favorite');
+    createFavorite.mockRejectedValue(error);
+
+    const queryClient = createTestQueryClient();
+    const initialFavorites = [{ id: '1', name: 'Old Favorite', type: 'search' }];
+    queryClient.setQueryData(['favorites'], initialFavorites);
+
+    const { result } = renderHook(() => useFavoritesMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation that will fail
+    try {
+      await result.current.addFavorite.mutateAsync({
+        name: 'New Favorite',
+        type: 'search',
+        data: { query: 'new search' }
+      });
+    } catch (e) {
+      // Expected to fail
+    }
+
+    // Cache should be rolled back to original state
+    await waitFor(() => {
+      const cachedData = queryClient.getQueryData(['favorites']);
+      expect(cachedData).toEqual(initialFavorites);
+    });
+  });
+
+  it('optimistically deletes favorite from cache before server responds', async () => {
+    deleteFavorite.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(), 100))
+    );
+
+    const queryClient = createTestQueryClient();
+    const initialFavorites = [
+      { id: '1', name: 'Favorite 1', type: 'search' },
+      { id: '2', name: 'Favorite 2', type: 'search' }
+    ];
+    queryClient.setQueryData(['favorites'], initialFavorites);
+    queryClient.setQueryData(['favorites', 'search'], initialFavorites);
+
+    const { result } = renderHook(() => useFavoritesMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation
+    let mutationPromise;
+    await act(async () => {
+      mutationPromise = result.current.deleteFavorite.mutateAsync('1');
+    });
+
+    // Check cache - optimistic update should have happened
+    await waitFor(() => {
+      const cachedData = queryClient.getQueryData(['favorites']);
+      expect(cachedData).toBeDefined();
+      expect(cachedData).toHaveLength(1);
+      expect(cachedData[0].id).toBe('2');
+    });
+
+    // Wait for mutation to complete
+    await mutationPromise;
+  });
+
+  it('optimistically clears favorites cache before server responds', async () => {
+    clearFavorites.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(), 100))
+    );
+
+    const queryClient = createTestQueryClient();
+    const initialFavorites = [
+      { id: '1', name: 'Favorite 1', type: 'search' },
+      { id: '2', name: 'Favorite 2', type: 'search' }
+    ];
+    queryClient.setQueryData(['favorites'], initialFavorites);
+    queryClient.setQueryData(['favorites', 'search'], initialFavorites);
+
+    const { result } = renderHook(() => useFavoritesMutation(), {
+      wrapper: createWrapperWithClient(queryClient),
+    });
+
+    // Trigger mutation
+    let mutationPromise;
+    await act(async () => {
+      mutationPromise = result.current.clearFavorites.mutateAsync();
+    });
+
+    // Check cache - optimistic update should have happened
+    await waitFor(() => {
+      const cachedData = queryClient.getQueryData(['favorites']);
+      expect(cachedData).toBeDefined();
+      expect(cachedData).toEqual([]);
+    });
+
+    // Wait for mutation to complete
+    await mutationPromise;
   });
 });
 

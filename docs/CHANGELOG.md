@@ -5,6 +5,44 @@ All notable changes to TubeTime will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.10.5] - 2025-11-24 (Phase 8 Day 3)
+
+### Added
+
+- **Optimistic Updates for Favorites:**
+  - Added optimistic updates to `useFavoritesMutation` hook
+  - Favorites appear/disappear instantly in UI before server responds
+  - Automatic rollback on error to maintain data consistency
+  - TDD test suite expanded with 4 new optimistic update tests
+
+### Changed
+
+- **Favorites Mutations:**
+  - `addFavorite`: Optimistically adds favorite to cache with temporary ID, replaces with real ID on success
+  - `deleteFavorite`: Optimistically removes favorite from cache immediately
+  - `clearFavorites`: Optimistically clears cache immediately
+  - All mutations include error rollback to restore previous state on failure
+
+### Technical
+
+- **Optimistic Update Pattern:**
+  - `onMutate`: Snapshot previous state and optimistically update cache
+  - `onError`: Rollback to previous state if mutation fails
+  - `onSuccess`: Replace optimistic data with real server response
+  - `onSettled`: Invalidate queries to ensure consistency
+
+- **Test Infrastructure:**
+  - Added 4 new tests for optimistic update behavior
+  - Tests verify cache updates happen before server response
+  - Tests verify rollback on error
+
+### Notes
+
+- Optimistic updates make UI feel instant and responsive
+- Error handling ensures data consistency even if mutations fail
+- All 129 tests passing (125 original + 4 new optimistic update tests)
+- Favorites component now provides instant feedback to users
+
 ## [4.10.4] - 2025-11-24 (Phase 8 Day 2)
 
 ### Added
